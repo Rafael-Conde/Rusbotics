@@ -7,9 +7,8 @@ pub trait Gui
 
 pub fn get_gui() -> Box<dyn Gui>
 {
-    Box::new(MyApp::default())
+	Box::new(MyApp::default())
 }
-
 
 impl Gui for MyApp
 {
@@ -27,6 +26,7 @@ impl Gui for MyApp
 #[derive(Default)]
 struct MyApp
 {
+	cs_data: String,
 	picked_path: Option<String>,
 }
 
@@ -43,7 +43,10 @@ impl eframe::App for MyApp
 						                             Some(path.display().to_string());
 				                             }
 			                             }
-
+			                             ui.horizontal(|ui| {
+				                               ui.label("Insert data here: ");
+				                               ui.text_edit_singleline(&mut self.cs_data);
+			                               });
 			                             if let Some(picked_path) = &self.picked_path
 			                             {
 				                             ui.horizontal(|ui| {
