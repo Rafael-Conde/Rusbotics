@@ -9,7 +9,7 @@
 
 pub mod gui_functions;
 
-
+pub mod script;
 
 
 
