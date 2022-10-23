@@ -10,3 +10,7 @@ eframe = "0.19.0"
 rfd = "0.10.0"
 pyo3 = "0.17.2"
 calamine = "0.19.1"
+
+
+# [features]
+# my_debug = []
