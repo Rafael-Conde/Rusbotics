@@ -7,8 +7,31 @@
 ///
 /// For the second number, in both cases it's the value of the `alpha` variable in
 /// radians.
+use std::fmt::Display;
 
-#[derive(Copy, Clone)]
+impl Display for JointType
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        match self
+        {
+            JointType::Prismatic(a, rad_alpha, rad_theta) =>
+            {
+                write!(f,
+                       "Prismatic(a: {}, rad_alpha: {}, rad_theta: {})",
+                       a, rad_alpha, rad_theta)
+            }
+            JointType::Rotational(a, rad_alpha, d) =>
+            {
+                write!(f,
+                       "Rotational(a: {}, rad_alpha: {}, d: {})",
+                       a, rad_alpha, d)
+            }
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
 pub enum JointType
 {
     Prismatic(/*a:*/ f64,

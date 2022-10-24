@@ -19,12 +19,13 @@ macro_rules! debug_m {
     ($( $args:expr ),*) => {};
 }
 
-use std::slice::Iter;
+use std::{error::Error, fmt::Display, io::BufReader};
 
 // use robotics_program::gui_functions::get_gui;
 // use robotics_program::script;
-use calamine::{open_workbook, DataType, Ods, Reader, Rows}; //, DataType};
+use calamine::{open_workbook, DataType, Ods, Reader}; //, DataType};
 use robotics_program::robotics::{Joint, JointType};
+use std::fs::File;
 
 fn main()
 {
@@ -32,55 +33,124 @@ fn main()
     // gui.run_gui();
     // implement code to get the path from another place
 
-    if let Ok(mut libreoffice) =
-		open_workbook::<Ods<_>,_>("C:\\Rafael\\nvim_projects\\Rust\\robotics_program\\test_file.ods")
-	{
-		if let Some(Ok(r)) = libreoffice.worksheet_range_at(0)
-		{
-			let rows_count = r.rows().count();
-			let mut joints: Vec<Box<dyn Joint>> = Vec::with_capacity(rows_count);
-			// println!("initial vec capacity: {}", joints.capacity());
-			debug_m!(joints.capacity());
-			// let joints
-			// Write code to dynamically allocate enough space for the whole rows
-			// and then use this allocation to store the data read from the file
-			let mut rows =  r.rows();
-			match rows.next()
-			{
-				Some(&[DataType::String(ref a),DataType::String(ref rad_alpha),DataType::String(ref d),DataType::String(ref theta)]) => 
-				{
-					//Handle first line being the strings "a","rad_alpha","d","theta"
-					if a != "a" || rad_alpha != "rad_alpha" || d != "d" || theta != "theta"
-					{
-						println!("When the first line is composed only of Strings, the Strings should be the following: \"a\",\"rad_alpha\",\"d\",\"theta\"");
-						return;
-					}
-				},
-				// for the following 2 other cases, use the funciont that's declared at the 
-				// end of the file to process the data when the rows has the mix of Floats and
-				// String
-				Some(&[DataType::Float(a),DataType::Float(rad_alpha),DataType::Float(d),DataType::String(ref theta)]) => 
-				{
-					if theta == "X"
-					{
-						joints.push(Box::new(JointType::Rotational(a, rad_alpha, d)));
-					}
-				},
-				Some(&[DataType::Float(a),DataType::Float(rad_alpha),DataType::String(ref d),DataType::Float(rad_theta)]) => 
-				{
-					// handles the first line being a prismatic joint
-					if d == "X"
-					{
-						joints.push(Box::new(JointType::Prismatic(a, rad_alpha, rad_theta)));
-					}
-				},
-				_ => println!("The first line doesn't matche the stablished pattern, checkout the default file to see a template"),
-			}
-		}
-	}
-    // if let Some(Ok(r)) = lib
+    let result = if let Ok(mut libreoffice) = open_workbook::<Ods<_>, _>(
+        "C:\\Rafael\\nvim_projects\\Rust\\robotics_program\\test_file.ods",
+    ) {
+        if let Some(Ok(ref r)) = libreoffice.worksheet_range_at(0) {
+            process_rows::<Ods<_>>(r).unwrap_or_else(| err | {println!("{}",err);
+            	panic!();
+            })
+        }
+        else
+        {
+			// std::process::exit(1);
+			panic!();
+        }
+    }
+    else
+    {
+    	// std::process::exit(1);
+    	panic!();
+    };
+    result.iter()
+          .inspect(|joint| println!("{}", joint.get_joint_type()))
+          .for_each(drop);
+}
+
+#[derive(Debug)]
+enum Errors
+{
+    SimpleError(&'static str),
+}
+
+impl Error for Errors {}
+
+impl Display for Errors
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        let msg = match self
+        {
+            Errors::SimpleError(msg) => msg,
+        };
+        write!(f, "{}", msg)
+    }
 }
 
 // This is meant to be a private function to process the Rows<DataType> iterator
 // so the processing logic is all in one place
-// fn process_rows(iter: Rows<DataType>, vec_of_joints: &Vec<Box<dyn Joint>>);
+fn process_rows<T: Reader<BufReader<File>>>(range: &calamine::Range<DataType>)
+                                            -> Result<Vec<Box<dyn Joint>>, Box<dyn Error>>
+{
+    let r_count = range.rows().count();
+    if r_count < 1
+    {
+        debug_m!("substitute print statement for a GUI warning!");
+
+        println!("The number of rows must be at least 1 row composed of 3 numbers and 1 text indicating which column is the joint variable");
+        return Err(Box::new(Errors::SimpleError("The file seems to be empty\nThe number of rows must be at least 1 row composed of 3 numbers and 1 text indicating which column is the joint variable")));
+    }
+    let mut rows = range.rows();
+    let mut joints: Vec<Box<dyn Joint>> = Vec::with_capacity(r_count);
+    match rows.next()
+    {
+        Some(&[DataType::String(ref a), DataType::String(ref rad_alpha), DataType::String(ref d), DataType::String(ref theta)]) =>
+        {
+            if a != "a" || rad_alpha != "rad_alpha" || d != "d" || theta != "rad_theta"
+            {
+                debug_m!("substitute print statement for a GUI warning!");
+                return Err(Box::new(Errors::SimpleError("When the first line is composed only of Strings, the Strings should be the following: \"a\",\"rad_alpha\",\"d\",\"rad_theta\"")));
+            }
+        }
+        Some(&[DataType::Float(a), DataType::Float(rad_alpha), DataType::Float(d), DataType::String(ref theta)]) =>
+        {
+            if theta.to_uppercase() == "X"
+            {
+                joints.push(Box::new(JointType::Rotational(a, rad_alpha, d)));
+            }
+        }
+        Some(&[DataType::Float(a), DataType::Float(rad_alpha), DataType::String(ref d), DataType::Float(rad_theta)]) =>
+        {
+            if d.to_uppercase() == "X"
+            {
+                joints.push(Box::new(JointType::Prismatic(a, rad_alpha, rad_theta)));
+            }
+        }
+        None =>
+        {
+            debug_m!("substitute print statement for a GUI warning!");
+            return Err(Box::new(Errors::SimpleError("It seems that the document was empty.")));
+        }
+        _ =>
+        {
+            debug_m!("substitute print statement for a GUI warning!");
+            return Err(Box::new(Errors::SimpleError("The first line doesn't matche the stablished pattern, checkout the default file to see a template")));
+        }
+    };
+    for row in rows
+    {
+        match row
+        {
+            &[DataType::Float(a), DataType::Float(rad_alpha), DataType::Float(d), DataType::String(ref theta)] =>
+            {
+                if theta.to_uppercase() == "X"
+                {
+                    joints.push(Box::new(JointType::Rotational(a, rad_alpha, d)));
+                }
+            }
+            &[DataType::Float(a), DataType::Float(rad_alpha), DataType::String(ref d), DataType::Float(rad_theta)] =>
+            {
+                if d.to_uppercase() == "X"
+                {
+                    joints.push(Box::new(JointType::Prismatic(a, rad_alpha, rad_theta)));
+                }
+            }
+            _ =>
+            {
+                debug_m!("substitute print statement for a GUI warning!");
+                return Err(Box::new(Errors::SimpleError("The rows should've 3 numbers and a string, the string should be in either the \"d\" or \"rad_theta\" columns to indicate which one is the joint variable")));
+            }
+        }
+    }
+    Ok(joints)
+}
