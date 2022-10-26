@@ -19,12 +19,12 @@ macro_rules! debug_m {
     ($( $args:expr ),*) => {};
 }
 
-use std::{error::Error, fmt::Display, io::BufReader};
+use std::{error::Error, ffi::OsStr, fmt::Display, io::BufReader, path::Path};
 
 // use robotics_program::gui_functions::get_gui;
 // use robotics_program::script;
 use calamine::{open_workbook, DataType, Ods, Reader}; //, DataType};
-use robotics_program::robotics::{Joint, JointType};
+use robotics_program::robotics::{DHTable, Joint, JointType, RobotInputData};
 use std::fs::File;
 
 fn main()
@@ -32,29 +32,9 @@ fn main()
     // let gui = get_gui();
     // gui.run_gui();
     // implement code to get the path from another place
-
-    let result = if let Ok(mut libreoffice) = open_workbook::<Ods<_>, _>(
-        "C:\\Rafael\\nvim_projects\\Rust\\robotics_program\\test_file.ods",
-    ) {
-        if let Some(Ok(ref r)) = libreoffice.worksheet_range_at(0) {
-            process_rows::<Ods<_>>(r).unwrap_or_else(| err | {println!("{}",err);
-            	panic!();
-            })
-        }
-        else
-        {
-			// std::process::exit(1);
-			panic!();
-        }
-    }
-    else
-    {
-    	// std::process::exit(1);
-    	panic!();
-    };
+    let result = extract_robot_data_from_file("C:\\Rafael\\nvim_projects\\Rust\\robotics_program\\test_file.ods").unwrap().to_dh_table().get_joints();
     result.iter()
-          .inspect(|joint| println!("{}", joint.get_joint_type()))
-          .for_each(drop);
+          .for_each(|joint| println!("{}", joint.get_joint_type()));
 }
 
 #[derive(Debug)]
@@ -77,10 +57,69 @@ impl Display for Errors
     }
 }
 
-// This is meant to be a private function to process the Rows<DataType> iterator
-// so the processing logic is all in one place
-fn process_rows<T: Reader<BufReader<File>>>(range: &calamine::Range<DataType>)
-                                            -> Result<Vec<Box<dyn Joint>>, Box<dyn Error>>
+// RobotInputData
+struct RIData
+{
+    vec: Vec<Box<dyn Joint>>,
+}
+
+impl DHTable for RIData
+{
+    fn get_joints(&self) -> Vec<Box<dyn Joint>>
+    {
+        self.vec.clone()
+    }
+}
+
+impl RobotInputData for RIData
+{
+    fn to_dh_table(&self) -> &dyn robotics_program::robotics::DHTable
+    {
+        self
+    }
+}
+
+// implement a function that takes a path as input and returns the dyn RobotInputData trait
+// as a way to
+fn extract_robot_data_from_file<P: AsRef<Path>>(
+    file: P)
+    -> Result<Box<dyn RobotInputData>, Box<dyn Error>>
+{
+    let rows = resolve_path(file)?;
+    Ok(Box::new(RIData { vec: process_rows(&rows)? }))
+}
+
+fn resolve_path<P>(path: P) -> Result<calamine::Range<DataType>, Box<dyn Error>>
+    where P: AsRef<Path>
+{
+    let path = path.as_ref();
+    match path.extension().unwrap().to_str().unwrap()
+    {
+        "ods" =>
+        {
+            if let Ok(mut libreoffice) = open_workbook::<Ods<_>, _>(path)
+            {
+                if let Some(Ok(r)) = libreoffice.worksheet_range_at(0)
+                {
+                    Ok(r)
+                }
+                else
+                {
+                    // std::process::exit(1);
+                    return Err(Box::new(Errors::SimpleError("Could read the first sheet")));
+                }
+            }
+            else
+            {
+                // std::process::exit(1);
+                return Err(Box::new(Errors::SimpleError("Could open the file")));
+            }
+        }
+        _ => Err(Box::new(Errors::SimpleError("File type not supported yet"))),
+    }
+}
+
+fn process_rows(range: &calamine::Range<DataType>) -> Result<Vec<Box<dyn Joint>>, Box<dyn Error>>
 {
     let r_count = range.rows().count();
     if r_count < 1

@@ -48,9 +48,34 @@ impl Joint for JointType
     }
 }
 
-pub trait Joint
+// to reason wether or not it makes sense to implement a JointClone trait to allow
+// dyn Joint cloning:
+// sort of makes sense since this trait implementation primarilly had in mind
+// it's usage with heap allocations and references.
+pub trait Joint: JointClone
 {
     fn get_joint_type(&self) -> JointType;
+}
+
+impl<T> JointClone for T where T: 'static + Joint + Clone
+{
+    fn joint_clone(&self) -> Box<dyn Joint>
+    {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<dyn Joint>
+{
+    fn clone(&self) -> Self
+    {
+        self.joint_clone()
+    }
+}
+
+pub trait JointClone
+{
+    fn joint_clone(&self) -> Box<dyn Joint>;
 }
 
 pub trait DHTable
