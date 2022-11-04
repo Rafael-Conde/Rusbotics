@@ -8,7 +8,7 @@
 
 use pyo3::{prelude::*, types::PyDict};
 
-pub fn symbolic_calculation() -> Result<(), PyErr>
+fn symbolic_calculation() -> Result<(), PyErr>
 {
     // add code to read the file instead of including the file String directly
     let test_run = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));

@@ -34,10 +34,8 @@ impl Display for JointType
 #[derive(Copy, Clone, Debug)]
 pub enum JointType
 {
-    Prismatic(/*a:*/ f64,
-              /*rad_alpha:*/ f64,
-              /*theta:*/ f64),
-    Rotational(/*a:*/ f64, /*rad_alpha:*/ f64, /*d:*/ f64),
+    Prismatic(f64, f64, f64),
+    Rotational(f64, f64, f64),
 }
 
 impl Joint for JointType
@@ -52,12 +50,12 @@ impl Joint for JointType
 // dyn Joint cloning:
 // sort of makes sense since this trait implementation primarilly had in mind
 // it's usage with heap allocations and references.
-pub trait Joint: JointClone
+pub trait Joint: private_parts::JointClone
 {
     fn get_joint_type(&self) -> JointType;
 }
 
-impl<T> JointClone for T where T: 'static + Joint + Clone
+impl<T> private_parts::JointClone for T where T: 'static + Joint + Clone
 {
     fn joint_clone(&self) -> Box<dyn Joint>
     {
@@ -73,9 +71,12 @@ impl Clone for Box<dyn Joint>
     }
 }
 
-pub trait JointClone
+mod private_parts
 {
-    fn joint_clone(&self) -> Box<dyn Joint>;
+    pub trait JointClone
+    {
+        fn joint_clone(&self) -> Box<dyn super::Joint>;
+    }
 }
 
 pub trait DHTable

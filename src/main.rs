@@ -43,7 +43,8 @@ enum Errors
     SimpleError(&'static str),
 }
 
-impl Error for Errors {}
+impl Error for Errors {} // no implementation necessary, since I'll be only using format
+                         // and debug traits
 
 impl Display for Errors
 {
@@ -73,9 +74,9 @@ impl DHTable for RIData
 
 impl RobotInputData for RIData
 {
-    fn to_dh_table(&self) -> &dyn robotics_program::robotics::DHTable
+    fn to_dh_table(&self) -> Box<dyn robotics_program::robotics::DHTable>
     {
-        self
+        Box::new(self.clone())
     }
 }
 
@@ -106,13 +107,13 @@ fn resolve_path<P>(path: P) -> Result<calamine::Range<DataType>, Box<dyn Error>>
                 else
                 {
                     // std::process::exit(1);
-                    return Err(Box::new(Errors::SimpleError("Could read the first sheet")));
+                    Err(Box::new(Errors::SimpleError("Could read the first sheet")))
                 }
             }
             else
             {
                 // std::process::exit(1);
-                return Err(Box::new(Errors::SimpleError("Could open the file")));
+                Err(Box::new(Errors::SimpleError("Could open the file")))
             }
         }
         _ => Err(Box::new(Errors::SimpleError("File type not supported yet"))),
