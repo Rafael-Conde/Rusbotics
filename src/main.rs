@@ -19,46 +19,49 @@ macro_rules! debug_m {
     ($( $args:expr ),*) => {};
 }
 
-use std::{error::Error, ffi::OsStr, fmt::Display, io::BufReader, path::Path};
+use std::{env, u8};
+use std::{error::Error, path::Path};
 
 // use robotics_program::gui_functions::get_gui;
-// use robotics_program::script;
 use calamine::{open_workbook, DataType, Ods, Reader}; //, DataType};
-use robotics_program::robotics::{DHTable, Joint, JointType, RobotInputData};
-use std::fs::File;
+use robotics_program::robotics::{DHTable, Errors, Joint, JointType, RobotInputData};
+use robotics_program::script;
+use std::fs::{read_to_string, OpenOptions};
+use std::io::Write;
 
-fn main()
+fn main() -> Result<(), Box<dyn Error>>
 {
-    // let gui = get_gui();
-    // gui.run_gui();
-    // implement code to get the path from another place
-    let result = extract_robot_data_from_file("C:\\Rafael\\nvim_projects\\Rust\\robotics_program\\test_file.ods").unwrap().to_dh_table().get_joints();
-    result.iter()
-          .for_each(|joint| println!("{}", joint.get_joint_type()));
-}
+    let dir = env::current_dir()?.to_string_lossy().to_string();
+    println!("{}", dir);
+    env::set_var("FONTCONFIG_PATH", dir);
+    let latex = read_to_string("test_file.tex").unwrap();
 
-#[derive(Debug)]
-enum Errors
-{
-    SimpleError(&'static str),
-}
+    let mut resp: Vec<u8> = tectonic::latex_to_pdf(latex).unwrap();
+    let mut file = OpenOptions::new().write(true)
+                                     .truncate(true)
+                                     // either use ? or unwrap since it returns a Result
+                                     .create(true)
+                                     .open("test.pdf")?;
 
-impl Error for Errors {} // no implementation necessary, since I'll be only using format
-                         // and debug traits
+    file.write_all(&mut resp);
+    Ok(())
 
-impl Display for Errors
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
-    {
-        let msg = match self
-        {
-            Errors::SimpleError(msg) => msg,
-        };
-        write!(f, "{}", msg)
-    }
+    // let joints = extract_robot_data_from_file("test_file.ods").unwrap()
+    //                                                           .to_dh_table()
+    //                                                           .get_joints();
+    // script::get_matrix_image(joints).unwrap();
+    // let mut resp: Vec<u8> = reqwest::blocking::get("https://latex.codecogs.com/png.latex?\\bg_white&space;x&space;=&space;\\frac{4}{5}&plus;\\pi\\Omega\\int_{2\\pi}^{\\infty}{5\\left\\(\\frac{\\tau&plus;3}{2}\\right\\)d\\omega}").unwrap().bytes().unwrap().to_vec();
+    // let mut file = OpenOptions::new().write(true)
+    //                                  // either use ? or unwrap since it returns a Result
+    //                                  .create(true)
+    //                                  .open("test.png")?;
+    //
+    // file.write_all(&mut resp);
+    // Ok(())
 }
 
 // RobotInputData
+#[derive(Clone)]
 struct RIData
 {
     vec: Vec<Box<dyn Joint>>,

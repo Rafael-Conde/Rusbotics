@@ -7,7 +7,7 @@
 ///
 /// For the second number, in both cases it's the value of the `alpha` variable in
 /// radians.
-use std::fmt::Display;
+use std::{error::Error, fmt::Display};
 
 impl Display for JointType
 {
@@ -86,8 +86,30 @@ pub trait DHTable
 
 pub trait RobotInputData
 {
-    fn to_dh_table(&self) -> &dyn DHTable;
+    fn to_dh_table(&self) -> Box<dyn DHTable>;
 }
 
 // implementar as funções pros cálculos numéricos
 // das equações matemáticas
+
+// lugar temporário para essa enum
+#[derive(Debug)]
+pub enum Errors
+{
+    SimpleError(&'static str),
+}
+
+impl Error for Errors {} // no implementation necessary, since I'll be only using format
+                         // and debug traits
+
+impl Display for Errors
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
+    {
+        let msg = match self
+        {
+            Errors::SimpleError(msg) => msg,
+        };
+        write!(f, "{}", msg)
+    }
+}
