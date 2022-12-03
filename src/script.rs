@@ -12,9 +12,9 @@ use pyo3::{
 };
 
 use crate::robotics::{Errors, Joint, JointType};
-use std::error::Error;
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::{env, error::Error};
 
 // implement a function that converts a Vec<Box<dyn Joint>> into python code that
 // can then be converted into the table that is used in the methods for symbolic
@@ -78,53 +78,41 @@ fn joints_to_python_code_for_method_input(joints: Vec<Box<dyn Joint>>)
 pub fn get_matrix_image(joints: Vec<Box<dyn Joint>>) -> Result<(), PyErr>
 {
     // add code to read the file instead of including the file String directly
+    // env::set_var("FONTCONFIG_PATH", env::current_dir().unwrap());
     let input = joints_to_python_code_for_method_input(joints).unwrap();
     let test_run = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
     let script_library =
         include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/library.py"));
+    let mut tex_code = Default::default();
     unsafe {
-        // trocar o caminho por um caminho relativo ao executável
-        // Também implementar uma variável de retorno melhor para a função,
-        // quando ela for de fato gerar a imagem da equação
         pyo3::with_embedded_python_interpreter(|py| -> Result<(), PyErr> {
             let globals = PyDict::new(py);
             let locals = PyDict::new(py);
             PyModule::from_code(py, script_library, "", "library")?;
             py.run(&input, Some(globals), Some(locals))?;
-            // let base_module = PyModule::from_code(py, py_app, "/python_app/app.py", "app").unwrap();
-            // let app: Py<PyAny> = base_module.getattr("get_string").unwrap().into();
-            // println!("Result: {}",app.call0(py).unwrap());
             py.run(test_run, Some(globals), Some(locals)).unwrap();
             let latex_equation: &str = locals.get_item("latex_equation").unwrap().extract()?;
-            println!("Just got the &str from the equation");
             let mut latex_equation = latex_equation.to_string();
-            latex_equation = latex_equation.replace('(', "\\(");
-            latex_equation = latex_equation.replace(')', "\\)");
-            // latex_equation = latex_equation.replace('{', "\\{");
-            // latex_equation = latex_equation.replace('}', "\\}");
-            // latex_equation = latex_equation.replace('[', "\\[");
-            // latex_equation = latex_equation.replace(']', "\\]");
-            println!("The string that will be appended to the url:\n\n{}",
-                     latex_equation);
-            let mut string_file = OpenOptions::new().write(true)
-                                                    // either use ? or unwrap since it returns a Result
-                                                    .create(true)
-                                                    .open("url.txt")?;
-            string_file.write(latex_equation.as_bytes());
-            let mut url = String::from("https://latex.codecogs.com/png.latex?\\bg_white&space;");
-            url.push_str(&latex_equation);
-            let mut resp: Vec<u8> = reqwest::blocking::get(&url).unwrap()
-                                                                .bytes()
-                                                                .unwrap()
-                                                                .to_vec();
-            let mut file = OpenOptions::new().write(true)
-                                             // either use ? or unwrap since it returns a Result
-                                             .create(true)
-                                             .open("test.png")?;
-
-            file.write_all(&mut resp);
-
+            tex_code = format!(
+                               "
+\\documentclass{{standalone}}
+\\begin{{document}}
+	\\( \\displaystyle ({}) \\)
+\\end{{document}}
+",
+                               latex_equation
+            );
             Ok(())
-        })
+        });
     }
+
+    println!("The text is: \n{}", tex_code);
+    let mut resp: Vec<u8> = tectonic::latex_to_pdf(tex_code).unwrap();
+    let mut file = OpenOptions::new().write(true)
+                                     .truncate(true)
+                                     .create(true)
+                                     .open("test.pdf")?;
+
+    file.write_all(&mut resp);
+    Ok(())
 }

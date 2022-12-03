@@ -21,7 +21,7 @@ tectonic = "0.12.0"
 
 [package.metadata.vcpkg]
 git = "https://github.com/microsoft/vcpkg"
-rev = "1be5a98d090b1d2beeb63a48ba800fbf006e8aca"
+rev = "cef0b3ec767df6e83806899fe9525f6cf8d7bc91"
 
 [package.metadata.vcpkg.target]
 x86_64-apple-darwin = { install = ["freetype","harfbuzz[icu,graphite2]"] }

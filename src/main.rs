@@ -22,18 +22,18 @@ macro_rules! debug_m {
 use std::{env, u8};
 use std::{error::Error, path::Path};
 
-// use robotics_program::gui_functions::get_gui;
+// use Rusbotics::gui_functions::get_gui;
 use calamine::{open_workbook, DataType, Ods, Reader}; //, DataType};
-use robotics_program::robotics::{DHTable, Errors, Joint, JointType, RobotInputData};
-use robotics_program::script;
 use std::fs::{read_to_string, OpenOptions};
 use std::io::Write;
+use Rusbotics::robotics::{DHTable, Errors, Joint, JointType, RobotInputData};
+use Rusbotics::script;
 
 fn main() -> Result<(), Box<dyn Error>>
 {
     let dir = env::current_dir()?.to_string_lossy().to_string();
     println!("{}", dir);
-    env::set_var("FONTCONFIG_PATH", dir);
+    println!("Generating the equation...");
     let latex = read_to_string("test_file.tex").unwrap();
 
     let mut resp: Vec<u8> = tectonic::latex_to_pdf(latex).unwrap();
@@ -44,20 +44,13 @@ fn main() -> Result<(), Box<dyn Error>>
                                      .open("test.pdf")?;
 
     file.write_all(&mut resp);
-    Ok(())
 
     // let joints = extract_robot_data_from_file("test_file.ods").unwrap()
     //                                                           .to_dh_table()
     //                                                           .get_joints();
-    // script::get_matrix_image(joints).unwrap();
-    // let mut resp: Vec<u8> = reqwest::blocking::get("https://latex.codecogs.com/png.latex?\\bg_white&space;x&space;=&space;\\frac{4}{5}&plus;\\pi\\Omega\\int_{2\\pi}^{\\infty}{5\\left\\(\\frac{\\tau&plus;3}{2}\\right\\)d\\omega}").unwrap().bytes().unwrap().to_vec();
-    // let mut file = OpenOptions::new().write(true)
-    //                                  // either use ? or unwrap since it returns a Result
-    //                                  .create(true)
-    //                                  .open("test.png")?;
-    //
-    // file.write_all(&mut resp);
-    // Ok(())
+    // script::get_matrix_image(joints);
+
+    Ok(())
 }
 
 // RobotInputData
@@ -77,7 +70,7 @@ impl DHTable for RIData
 
 impl RobotInputData for RIData
 {
-    fn to_dh_table(&self) -> Box<dyn robotics_program::robotics::DHTable>
+    fn to_dh_table(&self) -> Box<dyn Rusbotics::robotics::DHTable>
     {
         Box::new(self.clone())
     }
