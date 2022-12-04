@@ -6,10 +6,7 @@
         clippy::unwrap_used,
         clippy::expect_used)]
 
-use pyo3::{
-    prelude::*,
-    types::{PyDict, PyString},
-};
+use pyo3::{prelude::*, types::PyDict};
 
 use crate::robotics::{Errors, Joint, JointType};
 use std::fs::OpenOptions;

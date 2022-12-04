@@ -113,3 +113,26 @@ impl Display for Errors
         write!(f, "{}", msg)
     }
 }
+
+// RobotInputData
+#[derive(Clone)]
+pub(crate) struct RIData
+{
+    pub(crate) vec: Vec<Box<dyn Joint>>,
+}
+
+impl DHTable for RIData
+{
+    fn get_joints(&self) -> Vec<Box<dyn Joint>>
+    {
+        self.vec.clone()
+    }
+}
+
+impl RobotInputData for RIData
+{
+    fn to_dh_table(&self) -> Box<dyn DHTable>
+    {
+        Box::new(self.clone())
+    }
+}
