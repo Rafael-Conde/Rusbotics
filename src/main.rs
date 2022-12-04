@@ -31,24 +31,24 @@ use Rusbotics::script;
 
 fn main() -> Result<(), Box<dyn Error>>
 {
-    let dir = env::current_dir()?.to_string_lossy().to_string();
-    println!("{}", dir);
-    println!("Generating the equation...");
-    let latex = read_to_string("test_file.tex").unwrap();
+    // let dir = env::current_dir()?.to_string_lossy().to_string();
+    // println!("{}", dir);
+    // println!("Generating the equation...");
+    // let latex = read_to_string("test_file.tex").unwrap();
+    //
+    // let mut resp: Vec<u8> = tectonic::latex_to_pdf(latex).unwrap();
+    // let mut file = OpenOptions::new().write(true)
+    //                                  .truncate(true)
+    //                                  // either use ? or unwrap since it returns a Result
+    //                                  .create(true)
+    //                                  .open("test.pdf")?;
+    //
+    // file.write_all(&mut resp);
 
-    let mut resp: Vec<u8> = tectonic::latex_to_pdf(latex).unwrap();
-    let mut file = OpenOptions::new().write(true)
-                                     .truncate(true)
-                                     // either use ? or unwrap since it returns a Result
-                                     .create(true)
-                                     .open("test.pdf")?;
-
-    file.write_all(&mut resp);
-
-    // let joints = extract_robot_data_from_file("test_file.ods").unwrap()
-    //                                                           .to_dh_table()
-    //                                                           .get_joints();
-    // script::get_matrix_image(joints);
+    let joints = extract_robot_data_from_file("test_file.ods").unwrap()
+                                                              .to_dh_table()
+                                                              .get_joints();
+    script::get_matrix_image(joints);
 
     Ok(())
 }

@@ -96,8 +96,9 @@ pub fn get_matrix_image(joints: Vec<Box<dyn Joint>>) -> Result<(), PyErr>
             tex_code = format!(
                                "
 \\documentclass{{standalone}}
+\\usepackage{{amsmath}}
 \\begin{{document}}
-	\\( \\displaystyle ({}) \\)
+	\\( \\displaystyle {} \\)
 \\end{{document}}
 ",
                                latex_equation
