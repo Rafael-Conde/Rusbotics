@@ -1,10 +1,32 @@
 [package]
-name = "robotics_program"
-version = "0.1.0"
+name = "Rusbotics"
+version = "1.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-eframe = "0.19.0"
-rfd = "0.10.0"
+eframe = "0.19.0" # used to make the GUI
+rfd = "0.10.0" # used to get a file dialogue to choose a file in the system
+pyo3 = "0.17.2" # Used to embed the python script into the app
+calamine = "0.19.1" # Used to read spreadsheet files
+reqwest = { version = "0.11.12", features = ["blocking"]}  # used to get the image of a latex formula
+tectonic = "0.12.0"
+
+
+# [features]
+# my_debug = []
+
+
+
+[package.metadata.vcpkg]
+git = "https://github.com/microsoft/vcpkg"
+rev = "cef0b3ec767df6e83806899fe9525f6cf8d7bc91"
+
+[package.metadata.vcpkg.target]
+x86_64-apple-darwin = { install = ["freetype","harfbuzz[icu,graphite2]"] }
+aarch64-apple-darwin = { triplet = "arm64-osx", install = ["freetype","harfbuzz[icu,graphite2]"] }
+x86_64-unknown-linux-gnu = { install = ["fontconfig","freetype","harfbuzz[icu,graphite2]"] }
+x86_64-pc-windows-msvc = { triplet = "x64-windows-static", install = ["fontconfig","freetype","harfbuzz[icu,graphite2]"] }
+
+
