@@ -107,6 +107,8 @@ impl eframe::App for MyApp
                             {
                                 if let Ok(mut picked_path) = picked_path.lock()
                                 {
+                                    // teh deref is necessary
+                                    // otherwise the Arc would've been copied
                                     let temp = (*picked_path).clone();
                                     let calculation_thread_state =
                                         Arc::clone(&self.calculation_thread_state);
