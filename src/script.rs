@@ -9,9 +9,9 @@
 use pyo3::{prelude::*, types::PyDict};
 
 use crate::robotics::{Errors, Joint, JointType};
-use std::fs::OpenOptions;
-use std::io::Write;
 use std::{env, error::Error};
+
+use pdfium_render::prelude::*;
 
 // implement a function that converts a Vec<Box<dyn Joint>> into python code that
 // can then be converted into the table that is used in the methods for symbolic
@@ -89,7 +89,7 @@ pub fn get_matrix_image(joints: Vec<Box<dyn Joint>>) -> Result<(), PyErr>
             py.run(&input, Some(globals), Some(locals))?;
             py.run(test_run, Some(globals), Some(locals)).unwrap();
             let latex_equation: &str = locals.get_item("latex_equation").unwrap().extract()?;
-            let mut latex_equation = latex_equation.to_string();
+            let latex_equation = latex_equation.to_string();
             tex_code = format!(
                                "
 \\documentclass{{standalone}}
@@ -105,12 +105,35 @@ pub fn get_matrix_image(joints: Vec<Box<dyn Joint>>) -> Result<(), PyErr>
     }
 
     println!("The text is: \n{}", tex_code);
-    let mut resp: Vec<u8> = tectonic::latex_to_pdf(tex_code).unwrap();
-    let mut file = OpenOptions::new().write(true)
-                                     .truncate(true)
-                                     .create(true)
-                                     .open("test.pdf")?;
+    let pdf_bytes: Vec<u8> = tectonic::latex_to_pdf(tex_code).unwrap();
+    // let mut file = OpenOptions::new().write(true)
+    //                                  .truncate(true)
+    //                                  .create(true)
+    //                                  .open("test.pdf")?;
+    //
+    // file.write_all(&mut resp);
+    let pdfium = Pdfium::new(
+	       Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./"))
+	       .or_else(|_| Pdfium::bind_to_system_library()).unwrap());
 
-    file.write_all(&mut resp);
+    // let document = pdfium.load_pdf_from_bytes(pdf_bytes., None).unwrap();
+
+    let document = pdfium.load_pdf_from_byte_vec(pdf_bytes, None).unwrap();
+
+    let render_config = PdfRenderConfig::new(); // .set_target_width(2000)
+                                                // .set_maximum_height(2000);
+    for (index, page) in document.pages().iter().enumerate()
+    {
+        page.render_with_config(&render_config)
+            .unwrap()
+            .as_image() // Renders this page to an image::DynamicImage...
+            .as_rgba8() // ... then converts it to an image::Image...
+            .ok_or(PdfiumError::ImageError)
+            .unwrap()
+            .save_with_format(format!("test-page-{}.png", index), image::ImageFormat::Png) // ... and saves it to a file.
+            .map_err(|_| PdfiumError::ImageError)
+            .unwrap();
+    }
+    println!("image generated!");
     Ok(())
 }
