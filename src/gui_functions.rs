@@ -1,5 +1,6 @@
 use crate::{extract_robot_data_from_file, script};
 use eframe::egui;
+use egui_extras::image::RetainedImage;
 use std::sync::{Arc, Mutex};
 
 pub trait Gui
@@ -29,6 +30,8 @@ struct MyApp
     comma_separated_data: String,
     picked_path: Option<Mutex<String>>,
     calculation_thread_state: Arc<Mutex<ThreadState>>,
+    image_texture: Arc<Mutex<Option<RetainedImage>>>,
+    missing_image_warned: bool,
 }
 
 #[derive(Default)]
@@ -81,17 +84,35 @@ impl eframe::App for MyApp
                         {
                             if ui.button("Generate equation").clicked()
                             {
-                                if let Ok(mutex) = picked_path.lock()
+                                if let Ok(picked_path) = picked_path.lock()
                                 {
-                                    let temp = (*mutex).clone();
+                                    // teh deref is necessary
+                                    // otherwise the Arc would've been copied
+                                    let temp = (*picked_path).clone();
                                     let calculation_thread_state =
                                         Arc::clone(&self.calculation_thread_state);
+                                    let image_texture = Arc::clone(&self.image_texture);
                                     std::thread::spawn(move || {
                                         perform_calculations(temp);
-                                        if let Ok(mut state) = calculation_thread_state.lock()
+                                        let path =  std::path::Path::new("test-page-0.png");
+                                        if path.exists()
                                         {
-                                            *state = ThreadState::Finished;
-                                        };
+                                            if let Ok(image_file_bytes) = std::fs::read(path)
+                                            {
+                                                if let Ok(mut image_texture) = image_texture.lock()
+                                                {
+                                                    *image_texture = Some(RetainedImage::from_image_bytes("equacao", &image_file_bytes).unwrap());
+                                                }
+                                            }
+                                            else
+                                            {
+                                                println!("error while reading the image from the file");
+                                            }
+                                            if let Ok(mut state) = calculation_thread_state.lock()
+                                            {
+                                                *state = ThreadState::Finished;
+                                            };
+                                        }
                                     });
                                 }
                                 *current_thread_state = ThreadState::Running;
@@ -100,27 +121,60 @@ impl eframe::App for MyApp
                         ThreadState::Running =>
                         {
                             ui.add_enabled(false, egui::Button::new("Running calculations..."));
+                            self.missing_image_warned = false;
                         }
                         ThreadState::Finished =>
                         {
                             if ui.button("Rerun calculations").clicked()
                             {
-                                if let Ok(mut picked_path) = picked_path.lock()
+                                if let Ok(picked_path) = picked_path.lock()
                                 {
                                     // teh deref is necessary
                                     // otherwise the Arc would've been copied
                                     let temp = (*picked_path).clone();
                                     let calculation_thread_state =
                                         Arc::clone(&self.calculation_thread_state);
+                                    let image_texture = Arc::clone(&self.image_texture);
                                     std::thread::spawn(move || {
                                         perform_calculations(temp);
-                                        if let Ok(mut state) = calculation_thread_state.lock()
+                                        let path =  std::path::Path::new("test-page-0.png");
+                                        if path.exists()
                                         {
-                                            *state = ThreadState::Finished;
-                                        };
+                                            if let Ok(image_file_bytes) = std::fs::read(path)
+                                            {
+                                                if let Ok(mut image_texture) = image_texture.lock()
+                                                {
+                                                    *image_texture = Some(RetainedImage::from_image_bytes("equacao", &image_file_bytes).unwrap());
+                                                }
+                                            }
+                                            else
+                                            {
+                                                println!("error while reading the image from the file");
+                                            }
+                                            if let Ok(mut state) = calculation_thread_state.lock()
+                                            {
+                                                *state = ThreadState::Finished;
+                                            };
+                                        }
                                     });
                                 }
                                 *current_thread_state = ThreadState::Running;
+                            }
+                            if let Ok(image_texture) = self.image_texture.lock()
+                            {
+                                match *(image_texture)
+                                {
+                                    Some(ref image) => 
+                                    {
+                                        image.show(ui);
+                                    },
+                                    None if !self.missing_image_warned  => 
+                                    {
+                                        self.missing_image_warned = true;
+                                        println!("It's believed that there should be an image to be displayed");
+                                    },
+                                    None => ()
+                                }
                             }
                         }
                     }
