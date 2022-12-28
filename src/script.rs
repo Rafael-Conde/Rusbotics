@@ -5,6 +5,7 @@
         // clippy::cargo,
         clippy::unwrap_used,
         clippy::expect_used)]
+// #![allow(clippy::unwrap_used)]
 
 use pyo3::{prelude::*, types::PyDict};
 
@@ -76,18 +77,19 @@ pub fn get_matrix_image(joints: Vec<Box<dyn Joint>>) -> Result<(), PyErr>
 {
     // add code to read the file instead of including the file String directly
     // env::set_var("FONTCONFIG_PATH", env::current_dir().unwrap());
-    let input = joints_to_python_code_for_method_input(joints).unwrap();
+    let input = joints_to_python_code_for_method_input(joints).unwrap(); // find a way to return
+                                                                         // this Err to the caller
     let test_run = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
     let script_library =
         include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/library.py"));
-    let mut tex_code = Default::default();
+    let mut tex_code = std::string::String::default();
     unsafe {
         pyo3::with_embedded_python_interpreter(|py| -> Result<(), PyErr> {
             let globals = PyDict::new(py);
             let locals = PyDict::new(py);
             PyModule::from_code(py, script_library, "", "library")?;
             py.run(&input, Some(globals), Some(locals))?;
-            py.run(test_run, Some(globals), Some(locals)).unwrap();
+            py.run(test_run, Some(globals), Some(locals))?;
             let latex_equation: &str = locals.get_item("latex_equation").unwrap().extract()?;
             let latex_equation = latex_equation.to_string();
             tex_code = format!(
@@ -95,44 +97,47 @@ pub fn get_matrix_image(joints: Vec<Box<dyn Joint>>) -> Result<(), PyErr>
 \\documentclass{{standalone}}
 \\usepackage{{amsmath}}
 \\begin{{document}}
-	\\( \\displaystyle {} \\)
+	\\( \\displaystyle {latex_equation} \\)
 \\end{{document}}
-",
-                               latex_equation
+"
             );
-            Ok(())
+            Ok(()) // make use of this result
         });
     }
 
-    println!("The text is: \n{}", tex_code);
-    let pdf_bytes: Vec<u8> = tectonic::latex_to_pdf(tex_code).unwrap();
-    // let mut file = OpenOptions::new().write(true)
-    //                                  .truncate(true)
-    //                                  .create(true)
-    //                                  .open("test.pdf")?;
-    //
-    // file.write_all(&mut resp);
+    println!("The text is: \n{tex_code}");
+    let pdf_bytes: Vec<u8> = tectonic::latex_to_pdf(tex_code).unwrap(); // find a way
+                                                                        // to return this
+                                                                        // Err to the caller
+                                                                        // let mut file = OpenOptions::new().write(true)
+                                                                        //                                  .truncate(true)
+                                                                        //                                  .create(true)
+                                                                        //                                  .open("test.pdf")?;
+                                                                        //
+                                                                        // file.write_all(&mut resp);
     let pdfium = Pdfium::new(
 	       Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./"))
-	       .or_else(|_| Pdfium::bind_to_system_library()).unwrap());
+	       .or_else(|_| Pdfium::bind_to_system_library()).unwrap()); // show a pop-up warning
+                                                                 // and close the program
 
     // let document = pdfium.load_pdf_from_bytes(pdf_bytes., None).unwrap();
 
-    let document = pdfium.load_pdf_from_byte_vec(pdf_bytes, None).unwrap();
+    let document = pdfium.load_pdf_from_byte_vec(pdf_bytes, None).unwrap(); // return this Err
+                                                                            // to the caller
 
     let render_config = PdfRenderConfig::new(); // .set_target_width(2000)
                                                 // .set_maximum_height(2000);
     for (index, page) in document.pages().iter().enumerate()
     {
         page.render_with_config(&render_config)
-            .unwrap()
+            .unwrap() // return this Err to the caller
             .as_image() // Renders this page to an image::DynamicImage...
             .as_rgba8() // ... then converts it to an image::Image...
             .ok_or(PdfiumError::ImageError)
             .unwrap()
-            .save_with_format(format!("test-page-{}.png", index), image::ImageFormat::Png) // ... and saves it to a file.
+            .save_with_format(format!("test-page-{index}.png"), image::ImageFormat::Png) // ... and saves it to a file.
             .map_err(|_| PdfiumError::ImageError)
-            .unwrap();
+            .unwrap(); // return this Err to the caller
     }
     println!("image generated!");
     Ok(())

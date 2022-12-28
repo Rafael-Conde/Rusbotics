@@ -5,6 +5,7 @@
         // clippy::cargo,
         clippy::unwrap_used,
         clippy::expect_used)]
+// #![allow(clippy::unwrap_used)]
 
 use Rusbotics::gui_functions::get_gui;
 

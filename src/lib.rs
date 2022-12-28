@@ -5,6 +5,7 @@
         // clippy::cargo,
         clippy::unwrap_used,
         clippy::expect_used)]
+// #![allow(clippy::unwrap_used)]
 
 pub mod gui_functions;
 
@@ -43,10 +44,14 @@ fn resolve_path<P>(path: P) -> Result<calamine::Range<DataType>, Box<dyn Error>>
     where P: AsRef<Path>
 {
     let path = path.as_ref();
-    match path.extension().unwrap().to_str().unwrap()
+    match path.extension()
+              .ok_or("Couldn't retrieve the extension from the path to resolve it")?
+              .to_str()
+              .ok_or("There was an error with the path")?
     {
         "ods" =>
         {
+            #[allow(clippy::option_if_let_else)]
             if let Ok(mut libreoffice) = open_workbook::<Ods<_>, _>(path)
             {
                 if let Some(Ok(r)) = libreoffice.worksheet_range_at(0)
@@ -118,16 +123,16 @@ fn process_rows(range: &calamine::Range<DataType>) -> Result<Vec<Box<dyn Joint>>
     };
     for row in rows
     {
-        match row
+        match *row
         {
-            &[DataType::Float(a), DataType::Float(rad_alpha), DataType::Float(d), DataType::String(ref theta)] =>
+            [DataType::Float(a), DataType::Float(rad_alpha), DataType::Float(d), DataType::String(ref theta)] =>
             {
                 if theta.to_uppercase() == "X"
                 {
                     joints.push(Box::new(JointType::Rotational(a, rad_alpha, d)));
                 }
             }
-            &[DataType::Float(a), DataType::Float(rad_alpha), DataType::String(ref d), DataType::Float(rad_theta)] =>
+            [DataType::Float(a), DataType::Float(rad_alpha), DataType::String(ref d), DataType::Float(rad_theta)] =>
             {
                 if d.to_uppercase() == "X"
                 {

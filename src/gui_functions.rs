@@ -6,6 +6,8 @@
         clippy::unwrap_used,
         clippy::expect_used)]
 
+// #![allow(clippy::unwrap_used)]
+
 
 use crate::{extract_robot_data_from_file, script};
 use eframe::egui;
@@ -17,13 +19,15 @@ pub trait Gui
     fn run_gui(&self);
 }
 
+#[must_use]
 pub fn get_gui() -> Box<dyn Gui>
 {
-    Box::new(MyApp::default())
+	Box::<MyApp>::default()
 }
 
 impl Gui for MyApp
 {
+    #[allow(clippy::box_default)]
     fn run_gui(&self)
     {
         let options = eframe::NativeOptions::default();
@@ -54,14 +58,21 @@ enum ThreadState
 
 fn perform_calculations(path: String)
 {
-    let joints = extract_robot_data_from_file(path).unwrap()
+    let joints = extract_robot_data_from_file(path).unwrap() // turn this unwrap
+    														 // into a pop-up warning
                                                    .to_dh_table()
                                                    .get_joints();
-    script::get_matrix_image(joints);
+    script::get_matrix_image(joints); // later check is it's better to handle the error
+    								  // here or in the caller, which I beliebe depends on
+    								  // the success of this funciont
+    								  //
+    								  // this might not be an issue later since it's 
+    								  // scheduled to change this and return the bytes of the image
+    								  // directly to the retained image
 }
 
 
-fn button_generate_dh_matrix(picked_path: MutexGuard<String>, calculation_thread_state: Arc<Mutex<ThreadState>>, image_texture: Arc<Mutex<Option<RetainedImage>>>)
+fn button_generate_dh_matrix(picked_path: &MutexGuard<String>, calculation_thread_state: Arc<Mutex<ThreadState>>, image_texture: Arc<Mutex<Option<RetainedImage>>>)
 {
     let temp = (*picked_path).clone();
     std::thread::spawn(move || {
@@ -69,11 +80,13 @@ fn button_generate_dh_matrix(picked_path: MutexGuard<String>, calculation_thread
         let path =  std::path::Path::new("test-page-0.png");
         if path.exists()
         {
+			#[allow(clippy::option_if_let_else)]
             if let Ok(image_file_bytes) = std::fs::read(path)
             {
                 if let Ok(mut image_texture) = image_texture.lock()
                 {
-                    *image_texture = Some(RetainedImage::from_image_bytes("equacao", &image_file_bytes).unwrap());
+                    *image_texture = Some(RetainedImage::from_image_bytes("equacao", &image_file_bytes).unwrap()); // turn this unwrap
+                    																							   // into a pop-up warning
                 }
             }
             else
@@ -118,6 +131,7 @@ impl eframe::App for MyApp
                   });
                 if let Ok(mut current_thread_state) = self.calculation_thread_state.lock()
                 {
+					#[allow(clippy::significant_drop_in_scrutinee)]
                     match *current_thread_state
                     {
                         ThreadState::DidntRun =>
@@ -132,7 +146,7 @@ impl eframe::App for MyApp
                                     let calculation_thread_state =
                                         Arc::clone(&self.calculation_thread_state);
                                     let image_texture = Arc::clone(&self.image_texture);
-                                    button_generate_dh_matrix(picked_path, calculation_thread_state, image_texture);
+                                    button_generate_dh_matrix(&picked_path, calculation_thread_state, image_texture);
                                 //     std::thread::spawn(move || {
                                 //         perform_calculations(temp);
                                 //         let path =  std::path::Path::new("test-page-0.png");
@@ -179,7 +193,7 @@ impl eframe::App for MyApp
                                     let calculation_thread_state =
                                         Arc::clone(&self.calculation_thread_state);
                                     let image_texture = Arc::clone(&self.image_texture);
-                                    button_generate_dh_matrix(picked_path, calculation_thread_state, image_texture);
+                                    button_generate_dh_matrix(&picked_path, calculation_thread_state, image_texture);
                                     // teh deref is necessary
                                     // otherwise the Arc would've been copied
                                     // let temp = (*picked_path).clone();
@@ -213,6 +227,7 @@ impl eframe::App for MyApp
                             }
                             if let Ok(image_texture) = self.image_texture.lock()
                             {
+								#[allow(clippy::significant_drop_in_scrutinee)]
                                 match *(image_texture)
                                 {
                                     Some(ref image) => 

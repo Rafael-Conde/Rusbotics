@@ -1,3 +1,12 @@
+#![warn(clippy::all,
+/*#![warn(*/clippy::pedantic,
+		clippy::perf,
+        clippy::nursery,
+        // clippy::cargo,
+        clippy::unwrap_used,
+        clippy::expect_used)]
+// #![allow(clippy::unwrap_used)]
+
 /// For the Joint Enum the last number inside has a different meaning depending on the Enum
 /// variant.
 ///
@@ -15,17 +24,14 @@ impl Display for JointType
     {
         match self
         {
-            JointType::Prismatic(a, rad_alpha, rad_theta) =>
+            Self::Prismatic(a, rad_alpha, rad_theta) =>
             {
                 write!(f,
-                       "Prismatic(a: {}, rad_alpha: {}, rad_theta: {})",
-                       a, rad_alpha, rad_theta)
+                       "Prismatic(a: {a}, rad_alpha: {rad_alpha}, rad_theta: {rad_theta})")
             }
-            JointType::Rotational(a, rad_alpha, d) =>
+            Self::Rotational(a, rad_alpha, d) =>
             {
-                write!(f,
-                       "Rotational(a: {}, rad_alpha: {}, d: {})",
-                       a, rad_alpha, d)
+                write!(f, "Rotational(a: {a}, rad_alpha: {rad_alpha}, d: {d})")
             }
         }
     }
@@ -106,11 +112,12 @@ impl Display for Errors
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result
     {
+        #[allow(clippy::infallible_destructuring_match)]
         let msg = match self
         {
-            Errors::SimpleError(msg) => msg,
+            Self::SimpleError(msg) => msg,
         };
-        write!(f, "{}", msg)
+        write!(f, "{msg}")
     }
 }
 
