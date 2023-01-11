@@ -14,10 +14,41 @@
 
 use pyo3::{prelude::*, types::PyDict};
 
-use crate::robotics::{Errors, Joint, JointType};
+use crate::robotics::{Errors, Joint, JointType, RobotInputData};
 use std::{env, error::Error};
 
 use pdfium_render::prelude::*;
+
+// implementation of the state machine for the symbolic calculations, so that
+// once a step is already calculated, then it isn't necessary to recalculate it
+// to get to the next step
+
+struct SymCalculationState
+{
+    input_data: RIDstate,
+}
+
+impl SymCalculationState
+{
+    fn get_robot_input_data(self, path: AsRef<Path>)
+    {
+        self.input_data = RIDstate::DataPresent(crate::extract_robot_data_from_file(path));
+    }
+}
+
+enum RIDstate
+{
+    NoRobotInputData,
+    DataPresent(Box<dyn RobotInputData>),
+}
+
+impl Default for RIDstate
+{
+    fn default() -> Self
+    {
+        RIDstate::NoRobotInputData
+    }
+}
 
 // implement a function that converts a Vec<Box<dyn Joint>> into python code that
 // can then be converted into the table that is used in the methods for symbolic
