@@ -12,10 +12,13 @@
         clippy::expect_used)]
 // #![allow(clippy::unwrap_used)]
 
-use pyo3::{prelude::*, types::PyDict};
+use pyo3::{
+    prelude::*,
+    types::{PyDict, PyList},
+};
 
 use crate::robotics::{Errors, Joint, JointType, RobotInputData};
-use std::{env, error::Error};
+use std::{env, error::Error, path::Path, u8, io::Cursor};
 
 use pdfium_render::prelude::*;
 
@@ -23,37 +26,41 @@ use pdfium_render::prelude::*;
 // once a step is already calculated, then it isn't necessary to recalculate it
 // to get to the next step
 
-struct SymCalculationState
+struct SymCalculation
 {
-    input_data: RIDstate,
+    state: SymCalculationState,
 }
 
-impl SymCalculationState
+impl SymCalculation
 {
-    fn get_robot_input_data(self, path: AsRef<Path>)
+    // implement a separated method to get the input data from a string
+    pub fn set_robot_input_data<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Box<dyn Error>>
     {
-        self.input_data = RIDstate::DataPresent(crate::extract_robot_data_from_file(path));
+        self.state = SymCalculationState::HaveRobotData(crate::extract_robot_data_from_file(path)?);
+        Ok(())
     }
+
+    pub fn get_joints(&mut self) {}
 }
 
-enum RIDstate
+#[derive(Default)]
+enum SymCalculationState
 {
-    NoRobotInputData,
-    DataPresent(Box<dyn RobotInputData>),
-}
-
-impl Default for RIDstate
-{
-    fn default() -> Self
+    #[default]
+    NotStarted,
+    HaveRobotData(Box<dyn RobotInputData>),
+    DHMatrixCalculated
     {
-        RIDstate::NoRobotInputData
-    }
+        python_list_of_matrices: Py<PyList>,
+        matrix_image: Vec<u8>,
+        eq_tex: String,
+    },
 }
 
 // implement a function that converts a Vec<Box<dyn Joint>> into python code that
 // can then be converted into the table that is used in the methods for symbolic
 // calculatins
-fn joints_to_python_code_for_method_input(joints: Vec<Box<dyn Joint>>)
+fn joints_to_python_code_for_method_input(joints: &Vec<Box<dyn Joint>>)
                                           -> Result<String, Box<dyn Error>>
 {
     if joints.is_empty()
@@ -109,37 +116,43 @@ fn joints_to_python_code_for_method_input(joints: Vec<Box<dyn Joint>>)
     Ok(python_code_input)
 }
 
-pub fn get_matrix_image(joints: Vec<Box<dyn Joint>>) -> Result<(), PyErr>
+pub fn get_matrix_image(joints: &Vec<Box<dyn Joint>>) -> Result<(Vec<u8>,String,Py<PyAny>), Box<dyn Error>>
 {
-    // add code to read the file instead of including the file String directly
-    // env::set_var("FONTCONFIG_PATH", env::current_dir().unwrap());
-    let input = joints_to_python_code_for_method_input(joints).unwrap(); // find a way to return
-                                                                         // this Err to the caller
+    let input = joints_to_python_code_for_method_input(joints)?;
     let test_run = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
     let script_library =
         include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/library.py"));
     let mut tex_code = std::string::String::default();
-    unsafe {
-        pyo3::with_embedded_python_interpreter(|py| -> Result<(), PyErr> {
+    let (dh_list, latex_equation) = unsafe {
+        pyo3::with_embedded_python_interpreter(|py| -> Result<(Py<PyAny>,String), Box<dyn Error>> {
             let globals = PyDict::new(py);
             let locals = PyDict::new(py);
+            PyModule::import(py, "sympy")?;
             PyModule::from_code(py, script_library, "", "library")?;
             py.run(&input, Some(globals), Some(locals))?;
             py.run(test_run, Some(globals), Some(locals))?;
-            let latex_equation: &str = locals.get_item("latex_equation").unwrap().extract()?;
+            let error = Errors::SimpleError("Error getting DH matrix symbolically");
+            let dh_list: Py<PyAny> = locals.get_item("matrix_dh")
+                .ok_or(error)?
+                .into();
+
+            let latex_equation: &str = locals.get_item("latex_equation")
+                .ok_or(Errors::SimpleError("Error getting latex equation"))?
+                .extract()?;
+
             let latex_equation = latex_equation.to_string();
             tex_code = format!(
-                               "
-\\documentclass{{standalone}}
-\\usepackage{{amsmath}}
-\\begin{{document}}
+                "
+                \\documentclass{{standalone}}
+                \\usepackage{{amsmath}}
+                \\begin{{document}}
 	\\( \\displaystyle {latex_equation} \\)
-\\end{{document}}
+    \\end{{document}}
 "
-            );
-            Ok(()) // make use of this result
-        });
-    }
+);
+            Ok((dh_list,latex_equation)) 
+        })?
+    };
 
     println!("The text is: \n{tex_code}");
     let pdf_bytes: Vec<u8> = tectonic::latex_to_pdf(tex_code).unwrap(); // find a way
@@ -152,29 +165,27 @@ pub fn get_matrix_image(joints: Vec<Box<dyn Joint>>) -> Result<(), PyErr>
                                                                         //
                                                                         // file.write_all(&mut resp);
     let pdfium = Pdfium::new(
-	       Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./"))
-	       .or_else(|_| Pdfium::bind_to_system_library()).unwrap()); // show a pop-up warning
-                                                                 // and close the program
+	    Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./"))
+	    .or_else(|_| Pdfium::bind_to_system_library()).unwrap()); // show a pop-up warning
+                                                                  // and close the program
 
-    // let document = pdfium.load_pdf_from_bytes(pdf_bytes., None).unwrap();
+                                                                  // let document = pdfium.load_pdf_from_bytes(pdf_bytes., None).unwrap();
 
-    let document = pdfium.load_pdf_from_byte_vec(pdf_bytes, None).unwrap(); // return this Err
-                                                                            // to the caller
+    let document =
+        pdfium.load_pdf_from_byte_vec(pdf_bytes, None)
+        .map_err(|_err| Errors::SimpleError("Error while processing the image's data"))?;
 
     let render_config = PdfRenderConfig::new(); // .set_target_width(2000)
                                                 // .set_maximum_height(2000);
-    for (index, page) in document.pages().iter().enumerate()
-    {
-        page.render_with_config(&render_config)
-            .unwrap() // return this Err to the caller
-            .as_image() // Renders this page to an image::DynamicImage...
-            .as_rgba8() // ... then converts it to an image::Image...
-            .ok_or(PdfiumError::ImageError)
-            .unwrap()
-            .save_with_format(format!("test-page-{index}.png"), image::ImageFormat::Png) // ... and saves it to a file.
-            .map_err(|_| PdfiumError::ImageError)
-            .unwrap(); // return this Err to the caller
-    }
+    let mut image_bytes = Vec::new();
+    let page = document.pages()
+        .first()
+        .map_err(|_err| Errors::SimpleError("Empty image generated"))?;
+    page.render_with_config(&render_config)
+        .map_err(|_err| Errors::SimpleError("Error while rendering generated image"))?
+        .as_image()
+        .write_to(&mut Cursor::new(&mut image_bytes), image::ImageOutputFormat::Png)
+        .map_err(|_err| Box::new(Errors::SimpleError("Error while getting the bytes for the image")))?;
     println!("image generated!");
-    Ok(())
+    Ok((image_bytes, latex_equation, dh_list)) 
 }

@@ -12,15 +12,6 @@
         clippy::expect_used)]
 // #![allow(clippy::unwrap_used)]
 
-/// For the Joint Enum the last number inside has a different meaning depending on the Enum
-/// variant.
-///
-/// For the Prismatic variant, the last `f64` means the `Theta` of the joint.
-///
-/// For the Rotatinal variant, the last `f64` means the `d` variable of the joint.
-///
-/// For the second number, in both cases it's the value of the `alpha` variable in
-/// radians.
 use std::{error::Error, fmt::Display};
 
 impl Display for JointType
@@ -42,6 +33,15 @@ impl Display for JointType
     }
 }
 
+/// For the Joint Enum the last number inside has a different meaning depending on the Enum
+/// variant.
+///
+/// For the Prismatic variant, the last `f64` means the `Theta` of the joint.
+///
+/// For the Rotatinal variant, the last `f64` means the `d` variable of the joint.
+///
+/// For the second number, in both cases it's the value of the `alpha` variable in
+/// radians.
 #[derive(Copy, Clone, Debug)]
 pub enum JointType
 {
@@ -57,10 +57,6 @@ impl Joint for JointType
     }
 }
 
-// to reason wether or not it makes sense to implement a JointClone trait to allow
-// dyn Joint cloning:
-// sort of makes sense since this trait implementation primarilly had in mind
-// it's usage with heap allocations and references.
 pub trait Joint: private_parts::JointClone
 {
     fn get_joint_type(&self) -> JointType;
@@ -104,7 +100,7 @@ pub trait RobotInputData
 // das equações matemáticas
 
 // lugar temporário para essa enum
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum Errors
 {
     SimpleError(&'static str),
