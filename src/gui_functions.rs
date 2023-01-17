@@ -15,7 +15,7 @@
 // #![allow(clippy::unwrap_used)]
 
 
-use pyo3::{PyAny,types::PyList,Py};
+use pyo3::{PyAny,Py};
 use crate::{extract_robot_data_from_file, script};
 use eframe::egui;
 use egui_extras::image::RetainedImage;
@@ -191,7 +191,9 @@ impl eframe::App for MyApp
                                 {
                                     Some(ref image) => 
                                     {
-                                        image.show(ui);
+                                        egui::ScrollArea::both().show(ui, |ui|{
+                                            image.show(ui);
+                                        });
                                     },
                                     None if !self.missing_image_warned  => 
                                     {
