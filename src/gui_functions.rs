@@ -18,6 +18,8 @@
 use pyo3::{PyAny,Py};
 use crate::{extract_robot_data_from_file, script};
 use eframe::egui;
+use rfd::MessageDialog;
+use rfd::MessageLevel;
 use egui_extras::image::RetainedImage;
 use std::{sync::{Arc, Mutex, MutexGuard}, u8, path::Path, error::Error};
 
@@ -80,32 +82,56 @@ fn button_generate_dh_matrix(picked_path: &MutexGuard<String>, calculation_threa
 		match perform_calculations(&temp)
 		{
 			Ok((image_bytes,_,_)) => {
-        		std::fs::write("test-page-0.png",image_bytes);
-        		let path = std::path::Path::new("test-page-0.png");
-        		if path.exists()
-        		{
-					#[allow(clippy::option_if_let_else)]
-            		if let Ok(image_file_bytes) = std::fs::read(path)
-            		{
-                		if let Ok(mut image_texture) = image_texture.lock()
-                		{
-                    		*image_texture = Some(RetainedImage::from_image_bytes("equacao", &image_file_bytes).unwrap()); // turn this unwrap
-                    																							   	   	   // into a pop-up warning
-                		}
-            		}
-            		else
-            		{
-                		println!("error while reading the image from the file");
-            		}
-            		if let Ok(mut state) = calculation_thread_state.lock()
-            		{
-                		*state = ThreadState::Finished;
-            		};
-        		}
+        		// std::fs::write("test-page-0.png",image_bytes);
+        		// let path = std::path::Path::new("test-page-0.png");
+        		// if path.exists()
+        		// {
+				#[allow(clippy::option_if_let_else)]
+            	// if let Ok(image_file_bytes) = std::fs::read(path)
+            	// {
+                match RetainedImage::from_image_bytes("equacao", &image_bytes)
+                {
+                    Ok(retained_image) => 
+                    {
+                        if let Ok(mut image_texture) = image_texture.lock()
+                        {
+                            *image_texture = Some(retained_image); 
+                        };
+                        // MessageDialog::new()
+                        //     .set_level(MessageLevel::Info)
+                        //     .set_title("Image displayed")
+                        //     .set_description(&format!("Image displayed correctly!!"))
+                        //     .show();
+                    }
+                    Err(err) =>
+                    {
+                        MessageDialog::new()
+                            .set_level(MessageLevel::Error)
+                            .set_title("Error displaying image")
+                            .set_description(&format!("{err}"))
+                            .show();
+                    }
+                }
+            	// }
+            	// else
+            	// {
+                //    	println!("error while reading the image from the file");
+            	// }
+            	if let Ok(mut state) = calculation_thread_state.lock()
+            	{
+                	*state = ThreadState::Finished;
+            	};
+        		// }
         	}
         	Err(err) =>
         	{
-            	println!("Couldn't save image to disk: {err}");
+                MessageDialog::new()
+                    .set_level(MessageLevel::Error)
+                    .set_title("Error performing calculations!")
+                    .set_description(&format!("{err}"))
+                    .set_buttons(rfd::MessageButtons::Ok)
+                    .show();
+            	println!("{err}");
             	if let Ok(mut state) = calculation_thread_state.lock()
             	{
                 	*state = ThreadState::Finished;
@@ -131,18 +157,18 @@ impl eframe::App for MyApp
                 }
             }
             ui.horizontal(|ui| {
-                  ui.label("Insert data here: ");
-                  ui.text_edit_singleline(&mut self.comma_separated_data);
-              });
+                ui.label("Insert data here: ");
+                ui.text_edit_singleline(&mut self.comma_separated_data);
+            });
             if let Some(picked_path) = &self.picked_path
             {
                 ui.horizontal(|ui| {
-                      ui.label("Picked file:");
-                      if let Ok(picked_path) = picked_path.lock()
-                      {
-                          ui.monospace(&(*picked_path));
-                      }
-                  });
+                    ui.label("Picked file:");
+                    if let Ok(picked_path) = picked_path.lock()
+                    {
+                        ui.monospace(&(*picked_path));
+                    }
+                });
                 if let Ok(mut current_thread_state) = self.calculation_thread_state.lock()
                 {
 					#[allow(clippy::significant_drop_in_scrutinee)]
@@ -165,10 +191,10 @@ impl eframe::App for MyApp
                         ThreadState::Running =>
                         {
                             ui.horizontal(|ui|
-                            {
-                                ui.add_enabled(false, egui::Button::new("Running calculations..."));
-                                ui.spinner();
-                            });
+                                          {
+                                              ui.add_enabled(false, egui::Button::new("Running calculations..."));
+                                              ui.spinner();
+                                          });
                             self.missing_image_warned = false;
                         }
                         ThreadState::Finished =>
