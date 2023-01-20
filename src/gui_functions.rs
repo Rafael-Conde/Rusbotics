@@ -46,7 +46,7 @@ impl Gui for MyApp
     }
 }
 
-#[derive(Default)]
+// #[derive(Default)]
 struct MyApp
 {
     comma_separated_data: String,
@@ -54,6 +54,14 @@ struct MyApp
     calculation_thread_state: Arc<Mutex<ThreadState>>,
     image_texture: Arc<Mutex<Option<RetainedImage>>>,
     missing_image_warned: bool,
+    retained_image_zoom: f32,
+}
+
+impl Default for MyApp
+{
+	fn default() -> Self {
+	    Self { comma_separated_data: Default::default(), picked_path: Default::default(), calculation_thread_state: Default::default(), image_texture: Default::default(), missing_image_warned: Default::default(), retained_image_zoom: 1f32 }
+	}
 }
 
 #[derive(Default)]
@@ -218,7 +226,37 @@ impl eframe::App for MyApp
                                     Some(ref image) => 
                                     {
                                         egui::ScrollArea::both().show(ui, |ui|{
-                                            image.show(ui);
+                                            
+                                            if image.show_scaled(ui, self.retained_image_zoom).hovered()
+                                            {
+												match ui.input().zoom_delta()
+                                            	{
+                                            		1f32 => (),
+                                            		zoom if zoom < 1f32 => 
+                                            		{
+                                            			if (self.retained_image_zoom - (1f32 - zoom)) < 0.2f32
+                                            			{
+                                            				self.retained_image_zoom = 0.2f32;
+                                            			}
+                                            			else
+                                            			{
+                                            				self.retained_image_zoom += - (1f32 - zoom);
+                                            			}
+                                            		},
+                                            		zoom if zoom > 1f32 => 
+                                            		{
+                                            			if (self.retained_image_zoom + (zoom - 1f32)) > 5f32
+                                            			{
+                                            				self.retained_image_zoom = 5f32;
+                                            			}
+                                            			else
+                                            			{
+                                            				self.retained_image_zoom += (zoom - 1f32);
+                                            			}
+                                            		},
+                                            		_ => unreachable!()
+                                            	}
+                                            }
                                         });
                                     },
                                     None if !self.missing_image_warned  => 

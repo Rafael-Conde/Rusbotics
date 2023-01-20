@@ -175,8 +175,8 @@ pub fn get_matrix_image(joints: &Vec<Box<dyn Joint>>) -> Result<(Vec<u8>,String,
         pdfium.load_pdf_from_byte_vec(pdf_bytes, None)
         .map_err(|_err| Errors::SimpleError("Error while processing the image's data"))?;
 
-    let render_config = PdfRenderConfig::new(); // .set_target_width(2000)
-                                                // .set_maximum_height(2000);
+    let render_config = PdfRenderConfig::new().set_target_width(3000)
+                                              .set_maximum_height(4000);
     let mut image_bytes = Vec::new();
     let page = document.pages()
         .first()
