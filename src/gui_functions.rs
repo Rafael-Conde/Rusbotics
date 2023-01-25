@@ -79,7 +79,7 @@ fn perform_calculations<P: AsRef<Path>>(path: P) -> Result<(Vec<u8>,String,Py<Py
     												 // into a pop-up warning
                                                    .to_dh_table()
                                                    .get_joints();
-    script::get_matrix_image(&joints) 
+    script::get_dh_matrix_image(&joints) 
 }
 
 
@@ -251,7 +251,7 @@ impl eframe::App for MyApp
                                             			}
                                             			else
                                             			{
-                                            				self.retained_image_zoom += (zoom - 1f32);
+                                            				self.retained_image_zoom += zoom - 1f32;
                                             			}
                                             		},
                                             		_ => unreachable!()

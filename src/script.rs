@@ -12,69 +12,40 @@
         clippy::expect_used)]
 // #![allow(clippy::unwrap_used)]
 
-use pyo3::{
-    prelude::*,
-    types::{PyDict, PyList},
-};
+use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
-use crate::robotics::{Errors, Joint, JointType, RobotInputData};
-use std::{env, error::Error, path::Path, u8, io::Cursor};
+use crate::robotics::{Errors, Joint, JointType};
+use std::{env, error::Error, u8, io::Cursor};
+use std::convert::AsRef;
+use std::iter::Iterator;
+use std::iter::IntoIterator;
 
 use pdfium_render::prelude::*;
 
-// implementation of the state machine for the symbolic calculations, so that
-// once a step is already calculated, then it isn't necessary to recalculate it
-// to get to the next step
-
-struct SymCalculation
-{
-    state: SymCalculationState,
-}
-
-impl SymCalculation
-{
-    // implement a separated method to get the input data from a string
-    pub fn set_robot_input_data<P: AsRef<Path>>(&mut self, path: P) -> Result<(), Box<dyn Error>>
-    {
-        self.state = SymCalculationState::HaveRobotData(crate::extract_robot_data_from_file(path)?);
-        Ok(())
-    }
-
-    pub fn get_joints(&mut self) {}
-}
-
-#[derive(Default)]
-enum SymCalculationState
-{
-    #[default]
-    NotStarted,
-    HaveRobotData(Box<dyn RobotInputData>),
-    DHMatrixCalculated
-    {
-        python_list_of_matrices: Py<PyList>,
-        matrix_image: Vec<u8>,
-        eq_tex: String,
-    },
-}
+pub mod SymCalculationState;
 
 // implement a function that converts a Vec<Box<dyn Joint>> into python code that
 // can then be converted into the table that is used in the methods for symbolic
 // calculatins
-fn joints_to_python_code_for_method_input(joints: &Vec<Box<dyn Joint>>)
+fn joints_to_python_code_for_method_input<'a, I>(joints: I)
                                           -> Result<String, Box<dyn Error>>
+where I: ExactSizeIterator<Item = &'a Box<dyn Joint>> + Clone
 {
-    if joints.is_empty()
+    // let joints = joints.peekable();
+    if joints.len() == 0
     {
         return Err(Box::new(Errors::SimpleError("No Joint was provided")));
     }
     let mut python_code_input = String::from("tabela_DH = ([[");
     let mut tailing = "],[";
-    let mut joint_it = joints.iter().peekable();
+    // let mut joint_peekable = joints.clone().peekable();
+    let mut joint_peekable = joints.clone().peekable();
     let mut i = 0;
-    while let Some(joint) = joint_it.next()
+    while let Some(joint) = joint_peekable.next()
     {
         i += 1;
-        if joint_it.peek().is_none()
+        if joint_peekable.peek().is_none()
         {
             tailing = "]])\n\n";
         }
@@ -116,9 +87,10 @@ fn joints_to_python_code_for_method_input(joints: &Vec<Box<dyn Joint>>)
     Ok(python_code_input)
 }
 
-pub fn get_matrix_image(joints: &Vec<Box<dyn Joint>>) -> Result<(Vec<u8>,String,Py<PyAny>), Box<dyn Error>>
+pub fn get_dh_matrix_image<'a, C>(joints: C) -> Result<(Vec<u8>,String,Py<PyAny>), Box<dyn Error>>
+where C: AsRef<[Box<dyn Joint>]>
 {
-    let input = joints_to_python_code_for_method_input(joints)?;
+    let input = joints_to_python_code_for_method_input(joints.as_ref().into_iter())?;
     let test_run = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
     let script_library =
         include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/library.py"));
