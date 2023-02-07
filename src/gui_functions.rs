@@ -184,7 +184,7 @@ impl eframe::App for MyApp
                     {
                         ThreadState::DidntRun =>
                         {
-                            if ui.button("Generate equation").clicked()
+                            if ui.button("Generate DH Matrix").clicked()
                             {
                                 if let Ok(picked_path) = picked_path.lock()
                                 {

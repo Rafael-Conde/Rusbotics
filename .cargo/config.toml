@@ -1,2 +1,6 @@
 [build]
 rustflags = ["-C", "target-feature=+crt-static"]
+# [env]
+# VCPKG_ROOT={ value = "${CARGO_TARGET_DIR:-$(pwd)/target}/vcpkg", force = true}
+# RUSTFLAGS={value = '-C target-feature=+crt-static', force = true}
+# TECTONIC_DEP_BACKEND={value = "vcpkg", force = true}

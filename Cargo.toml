@@ -21,7 +21,9 @@ egui_extras = { version = "0.20.0", features = ["image"]}
 # [features]
 # my_debug = []
 
-
+[profile.release]
+lto = "fat"
+codegen-units = 1
 
 [package.metadata.vcpkg]
 git = "https://github.com/microsoft/vcpkg"
