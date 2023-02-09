@@ -15,6 +15,8 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 
+pub mod SymCalculationState;
+
 use crate::robotics::{Errors, Joint, JointType};
 use std::{env, error::Error, u8, io::Cursor};
 use std::convert::AsRef;
@@ -23,7 +25,6 @@ use std::iter::IntoIterator;
 
 use pdfium_render::prelude::*;
 
-pub mod SymCalculationState;
 
 // implement a function that converts a Vec<Box<dyn Joint>> into python code that
 // can then be converted into the table that is used in the methods for symbolic
@@ -86,9 +87,9 @@ where I: ExactSizeIterator<Item = &'a Box<dyn Joint>> + Clone
     }
     Ok(python_code_input)
 }
-
+// get_dh_matrix_image_eq_and_py functron
 pub fn get_dh_matrix_image<'a, C>(joints: C) -> Result<(Vec<u8>,String,Py<PyAny>), Box<dyn Error>>
-where C: AsRef<[Box<dyn Joint>]>
+where C: AsRef<[Box<Joint>]>
 {
     let input = joints_to_python_code_for_method_input(joints.as_ref().into_iter())?;
     let test_run = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));

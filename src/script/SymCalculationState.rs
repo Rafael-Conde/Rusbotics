@@ -6,8 +6,107 @@ clippy::nursery,
 clippy::unwrap_used,
 clippy::expect_used)]
 
-struct symCalculationStateHandler {
-    //store an enum with the state machine for the calculations
+use image::DynamicImage;
+use pyo3::{Py, PyAny};
+
+use crate::{
+    error::symbolic_calculation_errors::SymbolicCalculationError,
+    robotics::{Joint, JointType},
+};
+
+pub struct SymCalculationStateHandler
+{
+    data_source: DataSource,
+    joints: Vec<JointType>,
+    symbolic_values: SymbolicValues,
+}
+
+//build with builder pattern
+impl SymCalculationStateHandler
+{
+    pub fn reset_to_new_data_source<P>(self, file_source: P)
+        where P: AsRef<Path>
+    {
+    }
+
+    pub fn get_dh_matrix_image<J>(joints_slice: J) -> Result<DynamicImage, image::error::ImageError>
+        where J: AsRef<[Joints]>
+    {
+    }
+
+    pub fn get_dh_matrix_png_image_bytes<J>(joints_slice: J)
+                                            -> Result<Vec<u8>, image::error::ImageError>
+        where J: AsRef<[Joints]>
+    {
+        testando
+    }
+
+    pub fn get_dh_matrix_latex_eq<J>(joints_slice: J) -> Result<String, SymbolicCalculationError>
+        where J: AsRef<[Joints]>
+    {
+    }
+}
+
+struct SymbolicValues
+{
+    dh_matrix_symbolic: DHMatrixSymbolic,
+    jacobian_symbolic: JacobianSymbolic,
+}
+
+struct InnerValues
+{
+    python_value: Option<Py<PyAny>>,
+    image: Option<DynamicImage>,
+    latex_eq: Option<String>,
+}
+
+struct SymbolicDHMatrixStorage
+{
+    inner: InnerValues,
+}
+
+impl SymbolicDHMatrixStorage
+{
+    fn get_image<J>(joints: &J) -> Result<DynamicImage, image::error::ImageError>
+        where J: AsRef<[Joint]>
+    {
+    }
+
+    fn get_latex_eq<J>(joints: &J) -> Result<String, SymbolicCalculationError>
+        where J: AsRef<[Joint]>
+    {
+    }
+
+    fn store_python_value(py_value: Py<PyAny>) {}
+
+    fn get_python_value(self) -> Result<Py<PyAny>, SymbolicCalculationError> {}
+}
+
+struct SymbolicJacobianStorage
+{
+    inner: InnerValues,
+}
+
+struct SymCalculationStateHandlerBuilder;
+
+impl SymCalculationStateHandlerBuilder
+{
+    pub fn builder() -> SymCalculationStateHandlerBuilder
+    {
+        SymCalculationStateHandlerBuilder
+    }
+
+    pub fn with_path_data_source<DS>(self, path: DS)
+        where DS: AsRef<Path>
+    {
+        todo!()
+    }
+
+    pub fn with_csv_data_source<DS>(self, csv_data: DS)
+        where DS: AsRef<str>
+    {
+        todo!()
+    }
 }
 
 #[cfg(test)]
@@ -16,55 +115,151 @@ mod use_case_tests
     use std::default::Default;
     use std::fs::read;
 
-    use super::symCalculationStateHandler;
-
-    #[test]
-    fn creating_empty_state_handler()
+    use super::SymCalculationStateHandler;
+    mod sym_state_handler
     {
-        // should not panic, check for test methodology
+        use std::io::{BufWriter, Cursor};
 
-        let sym_calculation: symCalculationStateHandler = Default::default();
-        assert!(true);
+        use image;
+        #[test]
+        fn creating_empty_state_handler()
+        {
+            let sym_calculation: SymCalculationStateHandler = Default::default();
+        }
+
+        #[test]
+        fn input_data_through_file()
+        {
+            // should also work for xlsx, xls, xlsm, xlsb, xla, xlam
+            let file = std::path::Path::new("test_files/test_file.ods");
+            let sym_calculation =
+                SymCalculationStateHandler::build_sym_calc().with_data_source(file);
+            let other_file = std::path::Path::new("test_files/test_file.ods");
+            sym_calculation.reset_to_new_data_source(other_file);
+        }
+
+        #[test]
+        fn get_dh_matrix_image()
+        {
+            let file = std::path::Path::new("test_files/test_file.ods");
+            let sym_calculation: SymCalculationStateHandler = Default::default();
+            sym_calculation.reset_to_new_data_source(file);
+            let image = sym_calculation.get_dh_matrix_image().unwrap();
+
+            let reference_image_file = std::path::Path::new("test_files/reference_image.png");
+            let reference_image = std::fs::read(reference_image_file).unwrap();
+
+            // necessary to compare the bytes of the images
+            let image_bytes = Vec::new_with_capacity(image.width() * image.height());
+            image.write_to(BufWriter::new(&mut image_bytes),
+                           image::ImageOutputFormat::Png);
+            assert_eq!(image_bytes, reference_image);
+        }
+
+        #[test]
+        fn get_dh_matrix_in_latex_equation()
+        {
+            use std::fs as fileSystem;
+            use std::path::Path;
+            let file = Path::new("test_files/test_file.ods");
+            // data source is initially unspecified
+            let sym_calculation: SymCalculationStateHandler = Default::default();
+            sym_calculation.reset_to_new_data_source(file);
+            let latex_eq = sym_calculation.get_dh_matrix_latex_eq().unwrap();
+
+            let reference_eq_file = Path::new("test_files/reference_eq.txt");
+            let reference_eq = fileSystem::read_to_string(reference_eq_file);
+            assert_eq!(referemce_eq, latex_eq);
+        }
+
+        #[test]
+        fn get_ref_dh_matrix_image()
+        {
+            let file = std::path::Path::new("test_files/test_file.ods");
+            let sym_calculation: SymCalculationStateHandler = Default::default();
+            sym_calculation.reset_to_new_data_source(file);
+            let image = sym_calculation.get_ref_dh_matrix_image().unwrap();
+
+            let reference_image_file = std::path::Path::new("test_files/reference_image.png");
+            let reference_image = std::fs::read(reference_image_file).unwrap();
+
+            // necessary to compare the bytes of the images
+            let image_bytes = Vec::new_with_capacity(image.width() * image.height());
+            image.write_to(BufWriter::new(&mut image_bytes),
+                           image::ImageOutputFormat::Png);
+            assert_eq!(image_bytes, reference_image);
+        }
+
+        #[test]
+        fn get_ref_dh_matrix_in_latex_equation()
+        {
+            use std::fs as fileSystem;
+            use std::path::Path;
+            let file = Path::new("test_files/test_file.ods");
+            // data source is initially unspecified
+            let sym_calculation: SymCalculationStateHandler = Default::default();
+            sym_calculation.reset_to_new_data_source(file);
+            let latex_eq = sym_calculation.get_ref_dh_matrix_latex_eq().unwrap();
+
+            let reference_eq_file = Path::new("test_files/reference_eq.txt");
+            let reference_eq = fileSystem::read_to_string(reference_eq_file);
+            assert_eq!(referemce_eq, *latex_eq);
+        }
     }
 
-    #[test]
-    fn input_data_through_file()
+    mod functions_use_cases
     {
-        // should not panic, check for test methodology
+        use crate::robotics::JointType;
 
-        // should also work for xlsx, xls, xlsm, xlsb, xla, xlam
-        let file = std::path::Path::new("test_files/test_file1.ods");
-        let sym_calculation = symCalculationStateHandler::build_sym_calc().with_data_source(file);
-        let other_file = std::path::Path::new("test_files/test_file.ods");
-        sym_calculation.reset_to_new_data_source(other_file);
-    }
+        fn generate_vec_of_joints() -> Vec<JointType>
+        {
+            vec![JointType::Rotational(1, 90, 100),
+                 JointType::Prismatic(2, 180, 200)]
+        }
 
-    #[test]
-    fn get_dh_matrix_image()
-    {
-        let file = std::path::Path::new("test_files/test_file1.ods");
-        let sym_calculation: symCalculationStateHandler = Default::default();
-        sym_calculation.reset_to_new_data_source(file);
-        let image = sym_calculation.get_dh_matrix_image().unwrap();
+        #[test]
+        fn function_dh_matrix_image_from_joints()
+        {
+            let joints = generate_vec_of_joints();
+            let image = generate_dh_matrix_image(&joints).unwrap();
 
-        let reference_image_file = std::path::Path::new("test_files/reference_image.png");
-        let reference_image = std::fs::read(reference_image_file).unwrap();
-        assert_eq!(image, reference_image);
-    }
+            let reference_image_file = std::path::Path::new("test_files/reference_image.png");
+            let reference_image = std::fs::read(reference_image_file).unwrap();
 
-    #[test]
-    fn get_dh_matrix_in_latex_equation()
-    {
-        use std::fs as fileSystem;
-        use std::path::Path;
-        let file = Path::new("test_files/test_file1.ods");
-        // data source is initially unspecified
-        let sym_calculation: symCalculationStateHandler = Default::default();
-        sym_calculation.reset_to_new_data_source(file);
-        let latex_eq = sym_calculation.get_dh_matrix_latex_eq().unwrap();
+            // necessary to compare the bytes of the images
+            let image_bytes = Vec::new_with_capacity(image.width() * image.height());
+            image.write_to(BufWriter::new(&mut image_bytes),
+                           image::ImageOutputFormat::Png);
+            assert_eq!(image_bytes, reference_image);
+        }
 
-        let reference_eq_file = Path::new("test_files/reference_eq.txt");
-        let reference_eq = fileSystem::read_to_string(reference_eq_file);
-        assert_eq!(referemce_eq, latex_eq);
+        #[test]
+        fn function_dh_matrix_image_bytes_from_joints()
+        {
+            let joints = generate_vec_of_joints();
+            let image = generate_dh_matrix_image(&joints).unwrap();
+
+            let reference_image_file = std::path::Path::new("test_files/reference_image.png");
+            let reference_image = std::fs::read(reference_image_file).unwrap();
+
+            // necessary to compare the bytes of the images
+            let image_bytes = Vec::new_with_capacity(image.width() * image.height());
+            image.write_to(BufWriter::new(&mut image_bytes),
+                           image::ImageOutputFormat::Png);
+            assert_eq!(image_bytes, reference_image);
+        }
+
+        #[test]
+        fn function_dh_matrix_in_latex_equation()
+        {
+            use std::fs as fileSystem;
+            use std::path::Path;
+            let joints = generate_vec_of_joints();
+            let latex_eq = generate_dh_matrix_latex_eq(&joints).unwrap();
+
+            let reference_eq_file = Path::new("test_files/reference_eq.txt");
+            let reference_eq = fileSystem::read_to_string(reference_eq_file);
+            assert_eq!(referemce_eq, latex_eq);
+        }
     }
 }
