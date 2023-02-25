@@ -231,7 +231,7 @@ impl eframe::App for MyApp
                                             {
 												match ui.input().zoom_delta()
                                             	{
-                                            		1f32 => (),
+                                            		zoom if zoom == 1f32 => (),
                                             		zoom if zoom < 1f32 => 
                                             		{
                                             			if (self.retained_image_zoom - (1f32 - zoom)) < 0.2f32

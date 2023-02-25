@@ -12,10 +12,11 @@
         clippy::expect_used)]
 // #![allow(clippy::unwrap_used)]
 
+
+pub mod sym_calculation_state;
+
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
-
-pub mod SymCalculationState;
 
 use crate::robotics::{Errors, Joint, JointType};
 use std::{env, error::Error, u8, io::Cursor};
@@ -29,9 +30,10 @@ use pdfium_render::prelude::*;
 // implement a function that converts a Vec<Box<dyn Joint>> into python code that
 // can then be converted into the table that is used in the methods for symbolic
 // calculatins
-fn joints_to_python_code_for_method_input<'a, I>(joints: I)
+fn joints_to_python_code_for_method_input<'a, I, J>(joints: I)
                                           -> Result<String, Box<dyn Error>>
-where I: ExactSizeIterator<Item = &'a Box<dyn Joint>> + Clone
+where J: Joint + ?Sized + 'a,
+	  I: ExactSizeIterator<Item = &'a Box<J>> + Clone
 {
     // let joints = joints.peekable();
     if joints.len() == 0
@@ -88,8 +90,9 @@ where I: ExactSizeIterator<Item = &'a Box<dyn Joint>> + Clone
     Ok(python_code_input)
 }
 // get_dh_matrix_image_eq_and_py functron
-pub fn get_dh_matrix_image<'a, C>(joints: C) -> Result<(Vec<u8>,String,Py<PyAny>), Box<dyn Error>>
-where C: AsRef<[Box<Joint>]>
+pub fn get_dh_matrix_image<'a, C, J>(joints: C) -> Result<(Vec<u8>,String,Py<PyAny>), Box<dyn Error>>
+where J: Joint + ?Sized,
+	  C: AsRef<[Box<J>]>
 {
     let input = joints_to_python_code_for_method_input(joints.as_ref().into_iter())?;
     let test_run = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/app.py"));
