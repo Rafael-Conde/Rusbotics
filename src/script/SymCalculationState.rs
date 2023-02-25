@@ -18,16 +18,18 @@ pub struct SymCalculationStateHandler
 {
     data_source: DataSource,
     joints: Vec<JointType>,
-    symbolic_values: SymbolicValues,
+    symbolic_values: SymbolicValuesStorage,
 }
 
 //build with builder pattern
 impl SymCalculationStateHandler
 {
-    pub fn reset_to_new_data_source<P>(self, file_source: P)
-        where P: AsRef<Path>
+    pub fn reset_to_new_path_source<P: AsRef<Path>>(self, path: P)
+                                                    -> Result<(), std::io::ErrorKind>
     {
     }
+
+    pub fn reset_to_new_csv_source<S: AsRef<&str>>(self, csv_data: S) {}
 
     pub fn get_dh_matrix_image<J>(joints_slice: J) -> Result<DynamicImage, image::error::ImageError>
         where J: AsRef<[Joints]>
@@ -38,7 +40,6 @@ impl SymCalculationStateHandler
                                             -> Result<Vec<u8>, image::error::ImageError>
         where J: AsRef<[Joints]>
     {
-        testando
     }
 
     pub fn get_dh_matrix_latex_eq<J>(joints_slice: J) -> Result<String, SymbolicCalculationError>
@@ -47,7 +48,7 @@ impl SymCalculationStateHandler
     }
 }
 
-struct SymbolicValues
+struct SymbolicValuesStorage
 {
     dh_matrix_symbolic: DHMatrixSymbolic,
     jacobian_symbolic: JacobianSymbolic,
@@ -67,19 +68,23 @@ struct SymbolicDHMatrixStorage
 
 impl SymbolicDHMatrixStorage
 {
-    fn get_image<J>(joints: &J) -> Result<DynamicImage, image::error::ImageError>
-        where J: AsRef<[Joint]>
-    {
-    }
+    fn reset(&mut self) {}
 
-    fn get_latex_eq<J>(joints: &J) -> Result<String, SymbolicCalculationError>
-        where J: AsRef<[Joint]>
-    {
-    }
+    fn get_image<J>(&self) -> Option<DynamicImage> {}
 
-    fn store_python_value(py_value: Py<PyAny>) {}
+    fn get_ref_image<J>(&self) -> Option<&DynamicImage> {}
 
-    fn get_python_value(self) -> Result<Py<PyAny>, SymbolicCalculationError> {}
+    fn store_image<J>(&self, dyn_image: DynamicImage) {}
+
+    fn store_latex_eq<J>(&self, latex_eq: String) {}
+
+    fn get_latex_eq<J>(&self) -> Option<String> {}
+
+    fn get_ref_latex_eq<J>(&self) -> Option<&str> {}
+
+    fn store_python_value(&mut self, py_value: Py<PyAny>) {}
+
+    fn get_python_value(&mut self) -> Result<Py<PyAny>, SymbolicCalculationError> {}
 }
 
 struct SymbolicJacobianStorage
@@ -95,6 +100,8 @@ impl SymCalculationStateHandlerBuilder
     {
         SymCalculationStateHandlerBuilder
     }
+
+    pub fn build(self) -> SymCalculationStateHandler {}
 
     pub fn with_path_data_source<DS>(self, path: DS)
         where DS: AsRef<Path>
@@ -114,6 +121,12 @@ mod use_case_tests
 {
     use std::default::Default;
     use std::fs::read;
+
+    fn generate_vec_of_joints() -> Vec<JointType>
+    {
+        vec![JointType::Rotational(1, 90, 100),
+             JointType::Prismatic(2, 180, 200)]
+    }
 
     use super::SymCalculationStateHandler;
     mod sym_state_handler
@@ -211,12 +224,6 @@ mod use_case_tests
     {
         use crate::robotics::JointType;
 
-        fn generate_vec_of_joints() -> Vec<JointType>
-        {
-            vec![JointType::Rotational(1, 90, 100),
-                 JointType::Prismatic(2, 180, 200)]
-        }
-
         #[test]
         fn function_dh_matrix_image_from_joints()
         {
@@ -260,6 +267,60 @@ mod use_case_tests
             let reference_eq_file = Path::new("test_files/reference_eq.txt");
             let reference_eq = fileSystem::read_to_string(reference_eq_file);
             assert_eq!(referemce_eq, latex_eq);
+        }
+    }
+
+    mod SymbolicValuesStorage_test
+    {
+        use crate::script::SymCalculationState::SymbolicValuesStorage;
+
+        use super::generate_vec_of_joints;
+
+        #[test]
+        fn symbolic_values_storage_creation()
+        {
+            let symbolic_values: SymbolicValuesStorage = Default::default();
+        }
+
+        #[test]
+        fn initialization()
+        {
+            let symbolic_values = SymbolicValuesStorage::new(generate_vec_of_joints());
+        }
+
+        #[test]
+        fn storing_dh_matrix_image()
+        {
+            let symbolic_values: SymbolicValuesStorage = Default::default();
+            let image = generate_dh_matrix_image(generate_vec_of_joints());
+            symbolic_values.store_image(image);
+            assert_eq!(image, *(symbolic_values.get_ref_image()));
+        }
+
+        #[test]
+        fn storing_dh_matrix_latex_eq()
+        {
+            let symbolic_values: SymbolicValuesStorage = Default::default();
+            let latex_eq = generate_dh_matrix_latex_eq(generate_vec_of_joints());
+            symbolic_values.store_latex_eq(latex_eq);
+            assert_eq!(latex_eq, *(symbolic_values.get_ref_latex_eq()));
+        }
+
+        fn storing_jacobian_image()
+        {
+            let symbolic_values: SymbolicValuesStorage = Default::default();
+            let image = generate_jacobian_image(generate_vec_of_joints());
+            symbolic_values.store_image(image);
+            assert_eq!(image, *(symbolic_values.get_ref_image()));
+        }
+
+        #[test]
+        fn storing_jacobian_latex_eq()
+        {
+            let symbolic_values: SymbolicValuesStorage = Default::default();
+            let latex_eq = generate_jacobian_latex_eq(generate_vec_of_joints());
+            symbolic_values.store_latex_eq(latex_eq);
+            assert_eq!(latex_eq, *(symbolic_values.get_ref_latex_eq()));
         }
     }
 }
