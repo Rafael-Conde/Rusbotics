@@ -8,25 +8,10 @@ clippy::expect_used)]
 
 use crate::robotics::Errors;
 use csv;
-use serde::Deserialize;
 use std::error::Error;
+use std::io::Read;
 use std::str::FromStr;
-
-#[derive(Deserialize)]
-enum ExprInput
-{
-    Symbolic(String),
-    Numeric(f64),
-}
-
-#[derive(Deserialize)]
-struct DHTableRow
-{
-    a: ExprInput,
-    rad_alpha: ExprInput,
-    d: ExprInput,
-    rad_theta: ExprInput,
-}
+use std::u8;
 
 struct SymState {}
 
@@ -47,16 +32,20 @@ impl SymState
     {
         if let Ok(path) = std::path::PathBuf::from_str(input)
         {
-            return Ok(InputKind::File);
+            if path.exists()
+            {
+                return Ok(InputKind::File);
+            }
         }
-        let mut reader = csv::Reader::from_reader(input.as_bytes());
-        let mut dhtable: Vec<DHTableRow> = Vec::new();
-        for row in reader.deserialize()
+        let mut reader = csv::ReaderBuilder::new().has_headers(false)
+                                                  .delimiter(' ' as u8)
+                                                  .from_reader(input.as_bytes());
+        for row in reader.records()
         {
-            let row: DHTableRow = row.map_err(|_e| Errors::SimpleError("Invalid Input"))?;
-            dhtable.push(row);
+            row.map_err(|_e| Errors::SimpleError("Invalid Input"))?;
         }
-        Err(Errors::SimpleError("Invalid Input"))
+        Ok(InputKind::Csv)
+        // Err(Errors::SimpleError("Invalid Input"))
     }
 }
 
@@ -94,5 +83,11 @@ mod use_case_tests
                     _ => false,
                 })
     }
-}
 
+    #[test]
+    fn parsing_csv_input_to_joints()
+    {
+        let sym_state = SymState::new("a rad_alpha d rad_theta\n1 90 100 X\n2 180 200 X");
+        sym_state.get_joints();
+    }
+}
