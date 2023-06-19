@@ -130,7 +130,7 @@ where J: Joint + ?Sized,
         })?
     };
 
-    println!("The text is: \n{tex_code}");
+    // println!("The text is: \n{tex_code}");
     let pdf_bytes: Vec<u8> = tectonic::latex_to_pdf(tex_code).unwrap(); // find a way
                                                                         // to return this
                                                                         // Err to the caller
@@ -165,3 +165,11 @@ where J: Joint + ?Sized,
     println!("image generated!");
     Ok((image_bytes, latex_equation, dh_list)) 
 }
+
+
+pub fn get_jacobian_matrix_image<'a, C, J>(joints: C) -> Result<(Vec<u8>,String,Py<PyAny>), Box<dyn Error>>
+{
+
+}
+
+
