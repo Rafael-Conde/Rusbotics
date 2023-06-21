@@ -16,10 +16,10 @@ tabela_DH = symbolization(tabela_DH, joints)
 
 lista_itens = direct_kinematic(tabela_DH, joints)
 
-print(lista_itens[1])
+# print(lista_itens[1])
 #finish = dt.datetime.now()
-print(lista_itens[2])
-print(lista_itens[2] - lista_itens[1])
+# print(lista_itens[2])
+# print(lista_itens[2] - lista_itens[1])
 # transformar esse display no que gera a imagem
 matrix_dh = lista_itens[0][-1]
 latex_equation = s.latex(matrix_dh)
