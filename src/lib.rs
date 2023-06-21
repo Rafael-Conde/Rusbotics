@@ -16,6 +16,11 @@ pub mod gui_functions;
 
 pub mod script;
 
+pub mod error
+{
+    pub mod symbolic_calculation_errors;
+}
+
 pub mod robotics;
 
 use crate::robotics::{Errors, Joint, JointType, RIData, RobotInputData};

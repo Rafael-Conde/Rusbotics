@@ -17,11 +17,14 @@ tectonic = "0.12.0"
 pdfium-render = "0.7.27"
 image = {version = "0.24.5", features = ["png"]}
 egui_extras = { version = "0.20.0", features = ["image"]}
+csv = "1.2.0"
 
 # [features]
 # my_debug = []
 
-
+[profile.release]
+lto = "fat"
+codegen-units = 1
 
 [package.metadata.vcpkg]
 git = "https://github.com/microsoft/vcpkg"
