@@ -262,17 +262,30 @@ impl eframe::App for MyApp
                     {
                         ThreadState::DidntRun =>
                         {
-                            if ui.button("Generate DH Matrix").clicked()
-                            {
-                                if let Ok(picked_path) = picked_path.lock()
+                            ui.horizontal(|ui| {
+                                if ui.button("Generate DH Matrix").clicked()
                                 {
-                                    let calculation_thread_state =
-                                        Arc::clone(&self.calculation_thread_state);
-                                    let image_texture = Arc::clone(&self.image_texture);
-                                    button_generate_dh_matrix(&picked_path, calculation_thread_state, image_texture);
+                                    if let Ok(picked_path) = picked_path.lock()
+                                    {
+                                        let calculation_thread_state =
+                                            Arc::clone(&self.calculation_thread_state);
+                                        let image_texture = Arc::clone(&self.image_texture);
+                                        button_generate_dh_matrix(&picked_path, calculation_thread_state, image_texture);
+                                    }
+                                    *current_thread_state = ThreadState::Running;
                                 }
-                                *current_thread_state = ThreadState::Running;
-                            }
+                                if ui.button("Generate Jacobian Matrix").clicked()
+                                {
+                                    if let Ok(picked_path) = picked_path.lock()
+                                    {
+                                        let calculation_thread_state =
+                                            Arc::clone(&self.calculation_thread_state);
+                                        let image_texture = Arc::clone(&self.image_texture);
+                                        button_jacobian_matrix(&picked_path, calculation_thread_state, image_texture);
+                                    }
+                                    *current_thread_state = ThreadState::Running;
+                                }
+                            });
                         }
                         ThreadState::Running =>
                         {
@@ -285,17 +298,30 @@ impl eframe::App for MyApp
                         }
                         ThreadState::Finished =>
                         {
-                            if ui.button("Rerun calculations").clicked()
-                            {
-                                if let Ok(picked_path) = picked_path.lock()
+                            ui.horizontal(|ui| {
+                                if ui.button("Rerun  DH calculations").clicked()
                                 {
-                                    let calculation_thread_state =
-                                        Arc::clone(&self.calculation_thread_state);
-                                    let image_texture = Arc::clone(&self.image_texture);
-                                    button_generate_dh_matrix(&picked_path, calculation_thread_state, image_texture);
+                                    if let Ok(picked_path) = picked_path.lock()
+                                    {
+                                        let calculation_thread_state =
+                                            Arc::clone(&self.calculation_thread_state);
+                                        let image_texture = Arc::clone(&self.image_texture);
+                                        button_generate_dh_matrix(&picked_path, calculation_thread_state, image_texture);
+                                    }
+                                    *current_thread_state = ThreadState::Running;
                                 }
-                                *current_thread_state = ThreadState::Running;
-                            }
+                                if ui.button("Generate Jacobian Matrix").clicked()
+                                {
+                                    if let Ok(picked_path) = picked_path.lock()
+                                    {
+                                        let calculation_thread_state =
+                                            Arc::clone(&self.calculation_thread_state);
+                                        let image_texture = Arc::clone(&self.image_texture);
+                                        button_jacobian_matrix(&picked_path, calculation_thread_state, image_texture);
+                                    }
+                                    *current_thread_state = ThreadState::Running;
+                                }
+                            });
                             if let Ok(image_texture) = self.image_texture.lock()
                             {
 								#[allow(clippy::significant_drop_in_scrutinee)]

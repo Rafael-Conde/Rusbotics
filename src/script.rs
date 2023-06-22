@@ -168,6 +168,8 @@ where J: Joint + ?Sized,
 
 
 pub fn get_jacobian_matrix_image<'a, C, J>(joints: C) -> Result<(Vec<u8>,String,Py<PyAny>), Box<dyn Error>>
+where J: Joint + ?Sized,
+	  C: AsRef<[Box<J>]>
 {
     let input = joints_to_python_code_for_method_input(joints.as_ref().into_iter())?;
     let test_run = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/jacobian.py"));
