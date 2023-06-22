@@ -169,7 +169,76 @@ where J: Joint + ?Sized,
 
 pub fn get_jacobian_matrix_image<'a, C, J>(joints: C) -> Result<(Vec<u8>,String,Py<PyAny>), Box<dyn Error>>
 {
+    let input = joints_to_python_code_for_method_input(joints.as_ref().into_iter())?;
+    let test_run = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/jacobian.py"));
+    let script_library =
+        include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python_app/library.py"));
+    let mut tex_code = std::string::String::default();
+    let (dh_list, latex_equation) = unsafe {
+        pyo3::with_embedded_python_interpreter(|py| -> Result<(Py<PyAny>,String), Box<dyn Error>> {
+            let globals = PyDict::new(py);
+            let locals = PyDict::new(py);
+            PyModule::import(py, "sympy")?;
+            PyModule::from_code(py, script_library, "", "library")?;
+            py.run(&input, Some(globals), Some(locals))?;
+            py.run(test_run, Some(globals), Some(locals))?;
+            let error = Errors::SimpleError("Error getting DH matrix symbolically");
+            let dh_list: Py<PyAny> = locals.get_item("Jacobian")
+                .ok_or(error)?
+                .into();
 
+            let latex_equation: &str = locals.get_item("latex_equation")
+                .ok_or(Errors::SimpleError("Error getting latex equation"))?
+                .extract()?;
+
+            let latex_equation = latex_equation.to_string();
+            tex_code = format!(
+                "
+                \\documentclass{{standalone}}
+                \\usepackage{{amsmath}}
+                \\begin{{document}}
+	\\( \\displaystyle {latex_equation} \\)
+    \\end{{document}}
+"
+);
+            Ok((dh_list,latex_equation)) 
+        })?
+    };
+
+    // println!("The text is: \n{tex_code}");
+    let pdf_bytes: Vec<u8> = tectonic::latex_to_pdf(tex_code).unwrap(); // find a way
+                                                                        // to return this
+                                                                        // Err to the caller
+                                                                        // let mut file = OpenOptions::new().write(true)
+                                                                        //                                  .truncate(true)
+                                                                        //                                  .create(true)
+                                                                        //                                  .open("test.pdf")?;
+                                                                        //
+                                                                        // file.write_all(&mut resp);
+    let pdfium = Pdfium::new(
+	    Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./"))
+	    .or_else(|_| Pdfium::bind_to_system_library()).unwrap()); // show a pop-up warning
+                                                                  // and close the program
+
+                                                                  // let document = pdfium.load_pdf_from_bytes(pdf_bytes., None).unwrap();
+
+    let document =
+        pdfium.load_pdf_from_byte_vec(pdf_bytes, None)
+        .map_err(|_err| Errors::SimpleError("Error while processing the image's data"))?;
+
+    let render_config = PdfRenderConfig::new().set_target_width(3000)
+                                              .set_maximum_height(4000);
+    let mut image_bytes = Vec::new();
+    let page = document.pages()
+        .first()
+        .map_err(|_err| Errors::SimpleError("Empty image generated"))?;
+    page.render_with_config(&render_config)
+        .map_err(|_err| Errors::SimpleError("Error while rendering generated image"))?
+        .as_image()
+        .write_to(&mut Cursor::new(&mut image_bytes), image::ImageOutputFormat::Png)
+        .map_err(|_err| Box::new(Errors::SimpleError("Error while getting the bytes for the image")))?;
+    println!("Jacobian image generated!");
+    Ok((image_bytes, latex_equation, dh_list)) 
 }
 
 
