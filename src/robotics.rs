@@ -22,15 +22,53 @@ impl Display for JointType
         {
             Self::Prismatic(a, rad_alpha, rad_theta) =>
             {
+                let joint_a = match a
+                {
+                    crate::robotics::AttributeType::Value(value) => value.to_string(),
+                    crate::robotics::AttributeType::Symbol(symbol) => symbol.to_string(),
+                };
+                let joint_rad_alpha = match rad_alpha
+                {
+                    crate::robotics::AttributeType::Value(value) => value.to_string(),
+                    crate::robotics::AttributeType::Symbol(symbol) => symbol.to_string(),
+                };
+                let joint_rad_theta = match rad_theta
+                {
+                    crate::robotics::AttributeType::Value(value) => value.to_string(),
+                    crate::robotics::AttributeType::Symbol(symbol) => symbol.to_string(),
+                };
                 write!(f,
-                       "Prismatic(a: {a}, rad_alpha: {rad_alpha}, rad_theta: {rad_theta})")
+                       "Prismatic(a: {joint_a}, rad_alpha: {joint_rad_alpha}, rad_theta: {joint_rad_theta})")
             }
             Self::Rotational(a, rad_alpha, d) =>
             {
-                write!(f, "Rotational(a: {a}, rad_alpha: {rad_alpha}, d: {d})")
+                let joint_a = match a
+                {
+                    crate::robotics::AttributeType::Value(value) => value.to_string(),
+                    crate::robotics::AttributeType::Symbol(symbol) => symbol.to_string(),
+                };
+                let joint_rad_alpha = match rad_alpha
+                {
+                    crate::robotics::AttributeType::Value(value) => value.to_string(),
+                    crate::robotics::AttributeType::Symbol(symbol) => symbol.to_string(),
+                };
+                let joint_d = match d
+                {
+                    crate::robotics::AttributeType::Value(value) => value.to_string(),
+                    crate::robotics::AttributeType::Symbol(symbol) => symbol.to_string(),
+                };
+                write!(f,
+                       "Rotational(a: {joint_a}, rad_alpha: {joint_rad_alpha}, d: {joint_d})")
             }
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum AttributeType
+{
+    Value(f64),
+    Symbol(String),
 }
 
 /// For the Joint Enum the last number inside has a different meaning depending on the Enum
@@ -42,18 +80,18 @@ impl Display for JointType
 ///
 /// For the second number, in both cases it's the value of the `alpha` variable in
 /// radians.
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum JointType
 {
-    Prismatic(f64, f64, f64),
-    Rotational(f64, f64, f64),
+    Prismatic(AttributeType, AttributeType, AttributeType),
+    Rotational(AttributeType, AttributeType, AttributeType),
 }
 
 impl Joint for JointType
 {
     fn get_joint_type(&self) -> JointType
     {
-        *self
+        self.clone()
     }
 }
 

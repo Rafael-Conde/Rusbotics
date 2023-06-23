@@ -25,7 +25,8 @@ pub mod robotics;
 
 use crate::robotics::{Errors, Joint, JointType, RIData, RobotInputData};
 use calamine::{open_workbook, DataType, Ods, Reader};
-use std::{error::Error, path::Path}; //, DataType};
+use std::{error::Error, path::Path, println}; //, DataType};
+use crate::robotics::AttributeType;
 
 // TODO remove all of this things from here
 
@@ -103,23 +104,23 @@ fn process_rows(range: &calamine::Range<DataType>) -> Result<Vec<Box<dyn Joint>>
             if a != "a" || rad_alpha != "rad_alpha" || d != "d" || theta != "rad_theta"
             {
                 debug_m!("substitute print statement for a GUI warning!");
-                return Err(Box::new(Errors::SimpleError("When the first line is composed only of Strings, the Strings should be the following: \"a\",\"rad_alpha\",\"d\",\"rad_theta\"")));
+                return Err(Box::new(Errors::SimpleError("The first line should be composed only of Strings, the Strings should be the following: \"a\",\"rad_alpha\",\"d\",\"rad_theta\"")));
             }
         }
-        Some(&[DataType::Float(a), DataType::Float(rad_alpha), DataType::Float(d), DataType::String(ref theta)]) =>
-        {
-            if theta.to_uppercase() == "X"
-            {
-                joints.push(Box::new(JointType::Rotational(a, rad_alpha, d)));
-            }
-        }
-        Some(&[DataType::Float(a), DataType::Float(rad_alpha), DataType::String(ref d), DataType::Float(rad_theta)]) =>
-        {
-            if d.to_uppercase() == "X"
-            {
-                joints.push(Box::new(JointType::Prismatic(a, rad_alpha, rad_theta)));
-            }
-        }
+        // Some(&[DataType::Float(a), DataType::Float(rad_alpha), DataType::Float(d), DataType::String(ref theta)]) =>
+        // {
+        //     if theta.to_uppercase() == "X"
+        //     {
+        //         joints.push(Box::new(JointType::Rotational(a, rad_alpha, d)));
+        //     }
+        // }
+        // Some(&[DataType::Float(a), DataType::Float(rad_alpha), DataType::String(ref d), DataType::Float(rad_theta)]) =>
+        // {
+        //     if d.to_uppercase() == "X"
+        //     {
+        //         joints.push(Box::new(JointType::Prismatic(a, rad_alpha, rad_theta)));
+        //     }
+        // }
         None =>
         {
             debug_m!("substitute print statement for a GUI warning!");
@@ -133,22 +134,76 @@ fn process_rows(range: &calamine::Range<DataType>) -> Result<Vec<Box<dyn Joint>>
     };
     for row in rows
     {
-        match *row
+        match row
         {
-            [DataType::Float(a), DataType::Float(rad_alpha), DataType::Float(d), DataType::String(ref theta)] =>
-            {
-                if theta.to_uppercase() == "X"
+            &[ref a @ (DataType::Float(_) | DataType::String(_)), ref rad_alpha @ (DataType::Float(_) | DataType::String(_)), ref d @ (DataType::Float(_) | DataType::String(_)), ref rad_theta @ (DataType::Float(_) | DataType::String(_))] => {
+                let joint_a = match *a
                 {
-                    joints.push(Box::new(JointType::Rotational(a, rad_alpha, d)));
-                }
-            }
-            [DataType::Float(a), DataType::Float(rad_alpha), DataType::String(ref d), DataType::Float(rad_theta)] =>
-            {
-                if d.to_uppercase() == "X"
+                    DataType::String(ref a_symbol) => AttributeType::Symbol(a_symbol.clone()),
+                    DataType::Float(a_value) => AttributeType::Value(a_value),
+                    _ => unreachable!(),
+                };
+                let joint_rad_alpha = match *rad_alpha
                 {
-                    joints.push(Box::new(JointType::Prismatic(a, rad_alpha, rad_theta)));
+                    DataType::String(ref rad_alpha_symbol) => AttributeType::Symbol(rad_alpha_symbol.clone()),
+                    DataType::Float(rad_alpha_value) => AttributeType::Value(rad_alpha_value),
+                    _ => unreachable!(),
+                };
+                match (d, rad_theta)
+                {
+                    (DataType::String(ref d_symbol), DataType::String(ref rad_theta_symbol)) => {
+                        if (d_symbol == "*") && (rad_theta_symbol == "*")
+                        {
+                            return Err(Box::new(Errors::SimpleError("There should be only one string \"*\" defining which field is the joint variable, \"d\" or \"rad_theta\"")));
+                        }
+                        else if (d_symbol != "*") && (rad_theta_symbol != "*")
+                        {
+                            return Err(Box::new(Errors::SimpleError("There should be at least one string \"*\" defining which field is the joint variable")));
+                        }
+                        if d_symbol == "*"
+                        {
+                            let joint_rad_theta = AttributeType::Symbol(rad_theta_symbol.clone());
+                            joints.push(Box::new(JointType::Prismatic(joint_a, joint_rad_alpha, joint_rad_theta)));
+                        }
+                        else if rad_theta_symbol == "*"
+                        {
+                            let joint_d = AttributeType::Symbol(d_symbol.clone());
+                            joints.push(Box::new(JointType::Rotational(joint_a, joint_rad_alpha, joint_d)));
+                        }
+                        else 
+                        {
+                            unreachable!();
+                        }
+                    }
+                    (DataType::Float(d_value), DataType::String(ref rad_theta_symbol)) => {
+                        println!("{rad_theta_symbol}");
+                        if rad_theta_symbol == "*"
+                        {
+                            let joint_d = AttributeType::Value(*d_value);
+                            joints.push(Box::new(JointType::Rotational(joint_a, joint_rad_alpha, joint_d)));
+                        }
+                        else 
+                        {
+                            return Err(Box::new(Errors::SimpleError("As \"theta\" is a String, it should be \"*\" indicating it is the joint variable")));
+                        }
+                    }
+                    (DataType::String(ref d_symbol), DataType::Float(rad_theta_value)) => {
+                        if d_symbol == "*"
+                        {
+                            let joint_rad_theta = AttributeType::Value(*rad_theta_value);
+                            joints.push(Box::new(JointType::Prismatic(joint_a, joint_rad_alpha, joint_rad_theta)));
+                        }
+                        else 
+                        {
+                            return Err(Box::new(Errors::SimpleError("As \"d\" is a String, it should be \"*\" indicating it is the joint variable")));
+                        }
+                    }
+                    (DataType::Float(_), DataType::Float(_)) => {
+                        return Err(Box::new(Errors::SimpleError("There should be a \"*\" symbol denoting that that column for that joint a the joint variable")));
+                    }
+                    (_,_) => return Err(Box::new(Errors::SimpleError("File formating invalid, please check the template file for a reference"))),
                 }
-            }
+            },
             _ =>
             {
                 debug_m!("substitute print statement for a GUI warning!");
@@ -158,3 +213,19 @@ fn process_rows(range: &calamine::Range<DataType>) -> Result<Vec<Box<dyn Joint>>
     }
     Ok(joints)
 }
+
+// as bad as it's, I'll leave this here in case I quickly need to come back to what it was
+// [DataType::Float(a), DataType::Float(rad_alpha), DataType::Float(d), DataType::String(ref theta)] =>
+// {
+//     if theta.to_uppercase() == "X"
+//     {
+//         joints.push(Box::new(JointType::Rotational(a, rad_alpha, d)));
+//     }
+// }
+// [DataType::Float(a), DataType::Float(rad_alpha), DataType::String(ref d), DataType::Float(rad_theta)] =>
+// {
+//     if d.to_uppercase() == "X"
+//     {
+//         joints.push(Box::new(JointType::Prismatic(a, rad_alpha, rad_theta)));
+//     }
+// }

@@ -54,13 +54,37 @@ where J: Joint + ?Sized + 'a,
         }
         match joint.get_joint_type()
         {
-            JointType::Prismatic(a, rad_alpha, theta) =>
+            JointType::Prismatic(a, rad_alpha, rad_theta) =>
             {
-                python_code_input.push_str(&format!("'{rad_alpha}','{a}','d_{i}','{theta}'{tailing}"));
+                let joint_a = match a {
+                    crate::robotics::AttributeType::Value(value) => value.to_string(),
+                    crate::robotics::AttributeType::Symbol(symbol) => symbol,
+                };
+                let joint_rad_alpha = match rad_alpha {
+                    crate::robotics::AttributeType::Value(value) => value.to_string(),
+                    crate::robotics::AttributeType::Symbol(symbol) => symbol,
+                };
+                let joint_rad_theta = match rad_theta {
+                    crate::robotics::AttributeType::Value(value) => value.to_string(),
+                    crate::robotics::AttributeType::Symbol(symbol) => symbol,
+                };
+                python_code_input.push_str(&format!("'{joint_rad_alpha}','{joint_a}','d_{i}','{joint_rad_theta}'{tailing}"));
             }
             JointType::Rotational(a, rad_alpha, d) =>
             {
-                python_code_input.push_str(&format!("'{rad_alpha}','{a}','{d}','theta_{i}'{tailing}"));
+                let joint_a = match a {
+                    crate::robotics::AttributeType::Value(value) => value.to_string(),
+                    crate::robotics::AttributeType::Symbol(symbol) => symbol,
+                };
+                let joint_rad_alpha = match rad_alpha {
+                    crate::robotics::AttributeType::Value(value) => value.to_string(),
+                    crate::robotics::AttributeType::Symbol(symbol) => symbol,
+                };
+                let joint_d = match d {
+                    crate::robotics::AttributeType::Value(value) => value.to_string(),
+                    crate::robotics::AttributeType::Symbol(symbol) => symbol,
+                };
+                python_code_input.push_str(&format!("'{joint_rad_alpha}','{joint_a}','{joint_d}','theta_{i}'{tailing}"));
             }
         }
     }
