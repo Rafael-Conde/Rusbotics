@@ -1,0 +1,5 @@
+// for nushell
+let-env RUSTC_WRAPPER = "sccache"
+let-env CARGO_TARGET_DIR = $"($env.PWD)/target"
+let-env VCPKG_ROOT = $"($env.CARGO_TARGET_DIR)/vcpkg"
+let-env TECTONIC_DEP_BACKEND = "vcpkg"

@@ -1,4 +1,8 @@
-// ui.label(format!("{:.1}", ctx.input().time));
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+// Copyright (c) 2023 Rafael de Conde Reis. All rights reserved.
+
 #![warn(clippy::all,
 /*#![warn(*/clippy::pedantic,
 		clippy::perf,
@@ -6,12 +10,12 @@
         // clippy::cargo,
         clippy::unwrap_used,
         clippy::expect_used)]
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+// #![allow(clippy::unwrap_used)]
 
-use robotics_program::gui_functions::get_gui;
+use Rusbotics::gui_functions::get_gui;
 
 fn main()
 {
-	let gui = get_gui();
-	gui.run_gui();
+    let gui = get_gui();
+    gui.run_gui();
 }
