@@ -53,6 +53,7 @@ struct MyApp
     picked_path: Option<Mutex<String>>,
     calculation_thread_state: Arc<Mutex<ThreadState>>,
     image_texture: Arc<Mutex<Option<RetainedImage>>>,
+    image_equation: Arc<Mutex<Option<String>>>,
     missing_image_warned: bool,
     retained_image_zoom: f32,
 }
@@ -60,7 +61,7 @@ struct MyApp
 impl Default for MyApp
 {
 	fn default() -> Self {
-	    Self { comma_separated_data: Default::default(), picked_path: Default::default(), calculation_thread_state: Default::default(), image_texture: Default::default(), missing_image_warned: Default::default(), retained_image_zoom: 1f32 }
+	    Self { comma_separated_data: Default::default(), picked_path: Default::default(), calculation_thread_state: Default::default(), image_texture: Default::default(),image_equation: Default::default(), missing_image_warned: Default::default(), retained_image_zoom: 1f32 }
 	}
 }
 
@@ -92,13 +93,13 @@ fn perform_jacobian_calculations<P: AsRef<Path>>(path: P) -> Result<(Vec<u8>,Str
 }
 
 
-fn button_generate_dh_matrix(picked_path: &MutexGuard<String>, calculation_thread_state: Arc<Mutex<ThreadState>>, image_texture: Arc<Mutex<Option<RetainedImage>>>)
+fn button_generate_dh_matrix(picked_path: &MutexGuard<String>, calculation_thread_state: Arc<Mutex<ThreadState>>, image_texture: Arc<Mutex<Option<RetainedImage>>>, image_equation: Arc<Mutex<Option<String>>>)
 {
     let temp = (*picked_path).clone();
     std::thread::spawn(move || {
 		match perform_calculations(&temp)
 		{
-			Ok((image_bytes,_,_)) => {
+			Ok((image_bytes,latex_eq,_)) => {
         		// std::fs::write("test-page-0.png",image_bytes);
         		// let path = std::path::Path::new("test-page-0.png");
         		// if path.exists()
@@ -113,6 +114,10 @@ fn button_generate_dh_matrix(picked_path: &MutexGuard<String>, calculation_threa
                         if let Ok(mut image_texture) = image_texture.lock()
                         {
                             *image_texture = Some(retained_image); 
+                        };
+                        if let Ok(mut image_equation) = image_equation.lock()
+                        {
+                            *image_equation = Some(latex_eq); 
                         };
                         // MessageDialog::new()
                         //     .set_level(MessageLevel::Info)
@@ -159,14 +164,56 @@ fn button_generate_dh_matrix(picked_path: &MutexGuard<String>, calculation_threa
     // *current_thread_state = ThreadState::Running;
 }
 
+fn button_save_latex_eq_to_txt(image_equation: Arc<Mutex<Option<String>>>)
+{
+    let mut temp = String::default();
+    match image_equation.lock()
+    {
+        Ok(equation) =>{
+            if let Some(ref latex_eq) = *equation
+            {
+                temp = (*latex_eq).clone();
+            }
+        }
+        Err(err) => {
+            MessageDialog::new()
+                .set_level(MessageLevel::Error)
+                .set_title("Error saving the file!")
+                .set_description(&format!("{err}"))
+                .set_buttons(rfd::MessageButtons::Ok)
+                .show();
+            println!("{err}");
+            return;
+        }
+    }
+    
+    std::thread::spawn(move || {
+        match std::fs::write("equacao_latex.txt", temp)
+        {
+            Ok(()) => 
+            {
+            }
+            Err(err) => {
+                MessageDialog::new()
+                    .set_level(MessageLevel::Error)
+                    .set_title("Error saving the file!")
+                    .set_description(&format!("{err}"))
+                    .set_buttons(rfd::MessageButtons::Ok)
+                    .show();
+            	println!("{err}");
+            }
+        }
+    });
+}
 
-fn button_jacobian_matrix(picked_path: &MutexGuard<String>, calculation_thread_state: Arc<Mutex<ThreadState>>, image_texture: Arc<Mutex<Option<RetainedImage>>>)
+
+fn button_jacobian_matrix(picked_path: &MutexGuard<String>, calculation_thread_state: Arc<Mutex<ThreadState>>, image_texture: Arc<Mutex<Option<RetainedImage>>>, image_equation: Arc<Mutex<Option<String>>>)
 {
     let temp = (*picked_path).clone();
     std::thread::spawn(move || {
 		match perform_jacobian_calculations(&temp)
 		{
-			Ok((image_bytes,_,_)) => {
+			Ok((image_bytes,latex_eq,_)) => {
         		// std::fs::write("test-page-0.png",image_bytes);
         		// let path = std::path::Path::new("test-page-0.png");
         		// if path.exists()
@@ -181,6 +228,10 @@ fn button_jacobian_matrix(picked_path: &MutexGuard<String>, calculation_thread_s
                         if let Ok(mut image_texture) = image_texture.lock()
                         {
                             *image_texture = Some(retained_image); 
+                        };
+                        if let Ok(mut image_equation) = image_equation.lock()
+                        {
+                            *image_equation = Some(latex_eq); 
                         };
                         // MessageDialog::new()
                         //     .set_level(MessageLevel::Info)
@@ -270,7 +321,8 @@ impl eframe::App for MyApp
                                         let calculation_thread_state =
                                             Arc::clone(&self.calculation_thread_state);
                                         let image_texture = Arc::clone(&self.image_texture);
-                                        button_generate_dh_matrix(&picked_path, calculation_thread_state, image_texture);
+                                        let image_equation = Arc::clone(&self.image_equation);
+                                        button_generate_dh_matrix(&picked_path, calculation_thread_state, image_texture, image_equation);
                                     }
                                     *current_thread_state = ThreadState::Running;
                                 }
@@ -281,7 +333,8 @@ impl eframe::App for MyApp
                                         let calculation_thread_state =
                                             Arc::clone(&self.calculation_thread_state);
                                         let image_texture = Arc::clone(&self.image_texture);
-                                        button_jacobian_matrix(&picked_path, calculation_thread_state, image_texture);
+                                        let image_equation = Arc::clone(&self.image_equation);
+                                        button_jacobian_matrix(&picked_path, calculation_thread_state, image_texture, image_equation);
                                     }
                                     *current_thread_state = ThreadState::Running;
                                 }
@@ -306,7 +359,8 @@ impl eframe::App for MyApp
                                         let calculation_thread_state =
                                             Arc::clone(&self.calculation_thread_state);
                                         let image_texture = Arc::clone(&self.image_texture);
-                                        button_generate_dh_matrix(&picked_path, calculation_thread_state, image_texture);
+                                        let image_equation = Arc::clone(&self.image_equation);
+                                        button_generate_dh_matrix(&picked_path, calculation_thread_state, image_texture, image_equation);
                                     }
                                     *current_thread_state = ThreadState::Running;
                                 }
@@ -317,7 +371,8 @@ impl eframe::App for MyApp
                                         let calculation_thread_state =
                                             Arc::clone(&self.calculation_thread_state);
                                         let image_texture = Arc::clone(&self.image_texture);
-                                        button_jacobian_matrix(&picked_path, calculation_thread_state, image_texture);
+                                        let image_equation = Arc::clone(&self.image_equation);
+                                        button_jacobian_matrix(&picked_path, calculation_thread_state, image_texture, image_equation);
                                     }
                                     *current_thread_state = ThreadState::Running;
                                 }
@@ -362,6 +417,11 @@ impl eframe::App for MyApp
                                             	}
                                             }
                                         });
+                                        if ui.button("Save latex equation from the image").clicked()
+                                        {
+                                            let image_equation = Arc::clone(&self.image_equation);
+                                            button_save_latex_eq_to_txt(image_equation);
+                                        }
                                     },
                                     None if !self.missing_image_warned  => 
                                     {
